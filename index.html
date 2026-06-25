@@ -299,7 +299,7 @@
 
 <script>
   /* ===== ตั้งค่า: วาง URL ของ Apps Script Web App (.../exec) ตรงนี้ ===== */
-  var API_URL = 'https://script.google.com/macros/s/AKfycbyDKMqS8s4raIaPpR98f4FoBIr6u5rGTF-mDFCYoU42LYMqCG0SbmZ_tk5nS4_FoFWF/exec';
+  var API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   var currentTeam = localStorage.getItem('currentTeamId') || '';
   var currentWho = localStorage.getItem('techName') || '';
@@ -613,9 +613,26 @@
     var groups = {};
     serialData.filter(function (s) { return s.status === 'ON_HAND'; }).forEach(function (s) {
       if (!groups[s.code]) groups[s.code] = { code: s.code, name: s.name, group: s.group, serials: [] };
-      groups[s.code].serials.push(s.serial);
+      groups[s.code].serials.push({ serial: s.serial, addedDate: s.addedDate });
     });
     return groups;
+  }
+  function formatDateTH(isoStr) {
+    if (!isoStr) return '-';
+    var d = new Date(isoStr);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+  function daysOnHandLabel(isoStr) {
+    if (!isoStr) return '';
+    var then = new Date(isoStr);
+    if (isNaN(then.getTime())) return '';
+    var startOfThen = new Date(then.getFullYear(), then.getMonth(), then.getDate());
+    var startOfNow = new Date();
+    startOfNow = new Date(startOfNow.getFullYear(), startOfNow.getMonth(), startOfNow.getDate());
+    var days = Math.round((startOfNow - startOfThen) / 86400000);
+    if (days <= 0) return 'วันนี้';
+    return 'อยู่ในมือมาแล้ว ' + days + ' วัน';
   }
   function renderSerialGroups() {
     var el = document.getElementById('serialGroupList');
@@ -625,8 +642,10 @@
     el.innerHTML = keys.map(function (code) {
       var g = groups[code];
       var rows = g.serials.map(function (s) {
-        return '<div class="serial-row"><span>' + escapeHtml(s) + '</span>' +
-          '<button class="link-plain" style="color:var(--red)" onclick="event.stopPropagation();deleteSerialConfirm(\'' + jsStr(s) + '\')">ลบ</button></div>';
+        return '<div class="serial-row" style="align-items:flex-start;">' +
+          '<div><div>' + escapeHtml(s.serial) + '</div>' +
+          '<div class="item-meta" style="margin-top:2px;">รับเข้า ' + formatDateTH(s.addedDate) + ' · ' + daysOnHandLabel(s.addedDate) + '</div></div>' +
+          '<button class="link-plain" style="color:var(--red);flex-shrink:0;" onclick="event.stopPropagation();deleteSerialConfirm(\'' + jsStr(s.serial) + '\')">ลบ</button></div>';
       }).join('');
       return '<div class="card">' +
         '<div class="item-row" style="cursor:pointer;" onclick="toggleExpand(this)">' +
