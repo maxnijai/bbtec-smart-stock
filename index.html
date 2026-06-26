@@ -62,6 +62,9 @@
   .badge-BROKEN{background:#f8dedb;color:#c0392b;}
   .badge-ADD_SERIAL{background:var(--sky-pale);color:var(--navy);}
   .badge-RETURN_FAULTY{background:#ede4f7;color:#6b3fa0;}
+  .badge-TRANSFER_OUT{background:#e4e0f7;color:#5a3fa0;}
+  .badge-TRANSFER_IN{background:#e0ecf7;color:#2f5fa0;}
+  .badge-TRANSFER_CANCELLED{background:#f0f0f0;color:#666;}
   .empty{text-align:center;color:var(--muted);padding:34px 10px;font-size:14px;line-height:1.6;}
   .loading{text-align:center;padding:30px;color:var(--muted);font-size:13px;}
   .diff-pos{color:var(--green);}
@@ -244,6 +247,12 @@
 
       <div class="section-label" style="margin:18px 0 6px 2px;color:var(--red);">Type R — ของเสียที่รับจาก Site (รอส่งคืน)</div>
       <div id="faultyGroupList"><div class="loading">กำลังโหลด...</div></div>
+
+      <div class="section-label" style="margin:18px 0 6px 2px;color:#6b3fa0;">📥 ของที่รอรับโอนจากทีมอื่น</div>
+      <div id="incomingTransferList"><div class="loading">กำลังโหลด...</div></div>
+
+      <div class="section-label" style="margin:18px 0 6px 2px;color:#6b3fa0;">📤 ของที่ส่งไปแล้ว รอทีมปลายทางยืนยัน</div>
+      <div id="outgoingTransferList"><div class="loading">กำลังโหลด...</div></div>
     </div>
 
 
@@ -262,6 +271,30 @@
         <div class="field"><label>Site Code <span class="req">*</span></label><input id="wdSite" placeholder="เช่น CMI0123"></div>
         <div class="field"><label>หมายเหตุ</label><textarea id="wdNote" rows="2"></textarea></div>
         <button class="btn btn-accent" onclick="doWithdraw()">บันทึกการเบิก</button>
+      </div>
+
+      <div class="card row-between">
+        <span class="section-label">หรือโอนของให้ทีมอื่นโดยตรง</span>
+        <button class="link-plain" style="color:#6b3fa0;" onclick="openSendTransfer()">🔁 ส่งของให้ทีมอื่น</button>
+      </div>
+      <div class="card" id="sendTransferForm" style="display:none;border-color:#6b3fa0;">
+        <div class="field"><label>เลือกอุปกรณ์</label><select id="trSelect" onchange="onSelectChange('tr')"></select></div>
+        <div class="field" id="trQtyWrap"><label>จำนวนที่โอน</label><input id="trQty" type="number" min="1" value="1"></div>
+        <div class="field" id="trSerialWrap" style="display:none;">
+          <label>เลือก Serial ที่จะโอน <span class="req">*</span></label>
+          <button class="btn btn-outline" style="width:100%;margin-bottom:6px;" onclick="openScanner(function(t){ toggleSerialCheck('tr', t); })">📷 Scan เพื่อเลือก Serial</button>
+          <div id="trSerialList" class="serial-list"></div>
+        </div>
+        <div class="field">
+          <label>ทีมปลายทาง <span class="req">*</span></label>
+          <input id="trDestTeam" autocomplete="off" placeholder="พิมพ์ชื่อทีมปลายทาง" oninput="onTrDestTeamInput()">
+          <div class="ac-dropdown" id="acTrDestTeam"></div>
+        </div>
+        <div class="field"><label>เลขที่งาน / Ticket <span class="req">*</span></label><input id="trJob" placeholder="เช่น INC-12345"></div>
+        <div class="field"><label>Subject Ticket <span class="req">*</span></label><input id="trSubject" placeholder="หัวข้องาน"></div>
+        <div class="field"><label>หมายเหตุ</label><textarea id="trNote" rows="2" placeholder="เช่น ทีม XXX ของขาด เลยส่งให้"></textarea></div>
+        <button class="btn" style="background:#6b3fa0;color:#fff;" onclick="submitSendTransfer()">ส่งของให้ทีมปลายทาง</button>
+        <div class="item-meta" style="margin-top:6px;text-align:center;">ของจะหักออกจากสต๊อกทันที แต่จะเข้าสต๊อกทีมปลายทางจริงก็ต่อเมื่อเขากดยืนยันรับแล้ว</div>
       </div>
     </div>
 
@@ -295,6 +328,8 @@
       <div id="sumWithdrawn"></div>
       <div class="card row-between" style="margin:16px 0 6px;background:#ede4f7;border:none;"><b>↩️ ของเสียรับจาก Site (รอส่งคืน)</b></div>
       <div id="sumFaulty"></div>
+      <div class="card row-between" style="margin:16px 0 6px;background:#ede4f7;border:none;"><b>🔁 อยู่ระหว่างโอนย้าย (รอยืนยัน)</b></div>
+      <div id="sumTransferring"></div>
     </div>
 
     <!-- ประวัติ -->
@@ -309,6 +344,7 @@
         <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('WITHDRAW', event)">เบิก</button>
         <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('BROKEN', event)">เสีย</button>
         <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('RETURN_FAULTY', event)">รับของเสีย Site</button>
+        <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('TRANSFER', event)">โอนของ</button>
       </div>
       <div id="historyList"><div class="loading">กำลังโหลด...</div></div>
     </div>
@@ -363,6 +399,7 @@
   var lastAcMatches = [];
   var lastAcTeams = [];
   var lastAcRfMatches = [];
+  var lastAcTrTeams = [];
   var historyFilter = 'ALL';
   var zxingReader = null;
   var scannerCallback = null;
@@ -396,6 +433,7 @@
     if (!e.target.closest('#acTeam') && e.target.id !== 'loginTeamId') hideAc('acTeam');
     if (!e.target.closest('#acRfCode') && e.target.id !== 'rfCode') hideAc('acRfCode');
     if (!e.target.closest('#acRfName') && e.target.id !== 'rfName') hideAc('acRfName');
+    if (!e.target.closest('#acTrDestTeam') && e.target.id !== 'trDestTeam') hideAc('acTrDestTeam');
   });
 
   /* ---------- Login / Logout ---------- */
@@ -413,6 +451,11 @@
     loadStock();
     loadSerials();
     loadMatMaster();
+    loadTeamList();
+    loadTransfers();
+  }
+  function loadTeamList() {
+    callApi('getTeamIdList', {}).then(function (data) { teamList = data; }).catch(function () {});
   }
   function onTeamIdInput() {
     var q = document.getElementById('loginTeamId').value.trim().toLowerCase();
@@ -694,6 +737,125 @@
     }
   }
 
+  /* ---------- โอนของให้ทีมอื่น ---------- */
+  function openSendTransfer() { document.getElementById('sendTransferForm').style.display = 'block'; }
+  function onTrDestTeamInput() {
+    var q = document.getElementById('trDestTeam').value.trim().toLowerCase();
+    if (q.length < 1) { hideAc('acTrDestTeam'); return; }
+    var matches = teamList.filter(function (t) {
+      return t.teamId.toUpperCase() !== currentTeam.toUpperCase() && t.teamId.toLowerCase().indexOf(q) !== -1;
+    }).slice(0, 8);
+    lastAcTrTeams = matches;
+    var el = document.getElementById('acTrDestTeam');
+    if (!matches.length) { el.innerHTML = '<div class="ac-empty">ไม่พบทีมที่ตรงกัน</div>'; el.style.display = 'block'; return; }
+    el.innerHTML = matches.map(function (t, idx) {
+      return '<div class="ac-item" onclick="pickTrDestTeam(' + idx + ')"><div class="code">' + escapeHtml(t.teamId) + '</div>' +
+        (t.displayName ? '<div class="desc">' + escapeHtml(t.displayName) + '</div>' : '') + '</div>';
+    }).join('');
+    el.style.display = 'block';
+  }
+  function pickTrDestTeam(idx) {
+    var t = lastAcTrTeams[idx];
+    if (!t) return;
+    document.getElementById('trDestTeam').value = t.teamId;
+    hideAc('acTrDestTeam');
+  }
+  function submitSendTransfer() {
+    var sel = document.getElementById('trSelect');
+    var opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) { showToast('เลือกอุปกรณ์ก่อน'); return; }
+    var parts = opt.value.split('|');
+    var type = parts[0] === 'TYPER' ? 'Type R' : 'Type C';
+    var code = parts[1];
+    var name = opt.dataset.name;
+    var destTeam = document.getElementById('trDestTeam').value.trim().toUpperCase();
+    var job = document.getElementById('trJob').value.trim();
+    var subject = document.getElementById('trSubject').value.trim();
+    var note = document.getElementById('trNote').value.trim();
+    if (!destTeam) { showToast('เลือกทีมปลายทางก่อน'); return; }
+    if (destTeam === currentTeam.toUpperCase()) { showToast('เลือกทีมปลายทางที่ไม่ใช่ทีมตัวเอง'); return; }
+    if (!job || !subject) { showToast('กรอกเลขที่งาน / Subject Ticket ให้ครบ (จำเป็น)'); return; }
+
+    function resetTr() {
+      document.getElementById('sendTransferForm').style.display = 'none';
+      document.getElementById('trQty').value = 1;
+      document.getElementById('trDestTeam').value = '';
+      document.getElementById('trJob').value = '';
+      document.getElementById('trSubject').value = '';
+      document.getElementById('trNote').value = '';
+    }
+
+    if (type === 'Type R') {
+      var serials = getCheckedSerials('tr');
+      if (serials.length !== 1) { showToast('เลือก Serial ที่จะโอน 1 ชิ้นต่อการโอนหนึ่งครั้ง'); return; }
+      callApi('sendTransferSerial', { fromTeam: currentTeam, toTeam: destTeam, code: code, name: name, serial: serials[0], jobRef: job, subjectTicket: subject, note: note, by: currentWho }).then(function () {
+        showToast('ส่งของให้ทีม ' + destTeam + ' แล้ว รอเขายืนยันรับ');
+        resetTr();
+        loadSerials();
+        loadTransfers();
+      }).catch(showError);
+    } else {
+      var qty = Number(document.getElementById('trQty').value) || 0;
+      if (qty <= 0) { showToast('จำนวนต้องมากกว่า 0'); return; }
+      callApi('sendTransferItem', { fromTeam: currentTeam, toTeam: destTeam, code: code, name: name, qty: qty, jobRef: job, subjectTicket: subject, note: note, by: currentWho }).then(function () {
+        showToast('ส่งของให้ทีม ' + destTeam + ' แล้ว รอเขายืนยันรับ');
+        resetTr();
+        loadStock();
+        loadTransfers();
+      }).catch(showError);
+    }
+  }
+
+  /* ---------- รายการโอนที่รอดำเนินการ ---------- */
+  function loadTransfers() {
+    callApi('getPendingTransfersIncoming', { teamId: currentTeam }).then(renderIncomingTransfers).catch(showError);
+    callApi('getPendingTransfersOutgoing', { teamId: currentTeam }).then(renderOutgoingTransfers).catch(showError);
+  }
+  function renderIncomingTransfers(list) {
+    var el = document.getElementById('incomingTransferList');
+    if (!list.length) { el.innerHTML = '<div class="empty">ไม่มีของที่รอรับโอน</div>'; return; }
+    el.innerHTML = list.map(function (t) {
+      return '<div class="card">' +
+        '<div class="item-row"><div><div class="item-name">' + escapeHtml(t.name) + '</div>' +
+        '<div class="item-meta">' + escapeHtml(t.code) + (t.serial ? ' · Serial: ' + escapeHtml(t.serial) : ' · จำนวน ' + t.qty + ' EA') + '</div>' +
+        '<div class="item-meta">จากทีม: ' + escapeHtml(t.fromTeam) + ' · งาน: ' + escapeHtml(t.jobRef) + ' · ' + escapeHtml(t.subjectTicket) + '</div>' +
+        '<div class="item-meta">ส่งเมื่อ ' + formatDateTH(t.createdDate) + '</div></div></div>' +
+        '<button class="btn" style="background:#6b3fa0;color:#fff;margin-top:8px;" onclick="confirmTransferAction(\'' + jsStr(t.transferId) + '\')">✅ ยืนยันรับของ</button>' +
+        '</div>';
+    }).join('');
+  }
+  function renderOutgoingTransfers(list) {
+    var el = document.getElementById('outgoingTransferList');
+    if (!list.length) { el.innerHTML = '<div class="empty">ไม่มีของที่ส่งไปรอยืนยัน</div>'; return; }
+    el.innerHTML = list.map(function (t) {
+      return '<div class="card">' +
+        '<div class="item-row"><div><div class="item-name">' + escapeHtml(t.name) + '</div>' +
+        '<div class="item-meta">' + escapeHtml(t.code) + (t.serial ? ' · Serial: ' + escapeHtml(t.serial) : ' · จำนวน ' + t.qty + ' EA') + '</div>' +
+        '<div class="item-meta">ส่งไปทีม: ' + escapeHtml(t.toTeam) + ' · งาน: ' + escapeHtml(t.jobRef) + ' · ' + escapeHtml(t.subjectTicket) + '</div>' +
+        '<div class="item-meta">ส่งเมื่อ ' + formatDateTH(t.createdDate) + '</div></div></div>' +
+        '<button class="link-plain" style="color:var(--red);margin-top:8px;" onclick="cancelTransferAction(\'' + jsStr(t.transferId) + '\')">ยกเลิกการโอนนี้</button>' +
+        '</div>';
+    }).join('');
+  }
+  function confirmTransferAction(transferId) {
+    if (!confirm('ยืนยันรับของชิ้นนี้เข้าสต๊อกทีมเรา?')) return;
+    callApi('confirmTransfer', { transferId: transferId, teamId: currentTeam, by: currentWho }).then(function () {
+      showToast('ยืนยันรับของแล้ว');
+      loadTransfers();
+      loadStock();
+      loadSerials();
+    }).catch(showError);
+  }
+  function cancelTransferAction(transferId) {
+    if (!confirm('ยกเลิกการโอนนี้ และเอาของกลับเข้าสต๊อกทีมเรา?')) return;
+    callApi('cancelTransfer', { transferId: transferId, teamId: currentTeam, by: currentWho }).then(function () {
+      showToast('ยกเลิกการโอนแล้ว');
+      loadTransfers();
+      loadStock();
+      loadSerials();
+    }).catch(showError);
+  }
+
   /* ---------- นับสต๊อก: Type C ---------- */
   function loadStock() {
     callApi('getStockList', { teamId: currentTeam }).then(function (data) {
@@ -876,16 +1038,17 @@
       opts += '<option value="TYPER|' + escapeHtml(code) + '" data-type="Type R" data-name="' + escapeHtml(g.name) + '">[Type R] ' + escapeHtml(g.name) + ' (Serial พร้อมใช้ ' + g.serials.length + ' ชิ้น)</option>';
     });
     var fallback = '<option value="">ยังไม่มีรายการ — ไปเพิ่มที่แท็บนับสต๊อกก่อน</option>';
-    ['wdSelect', 'brSelect'].forEach(function (id) {
+    ['wdSelect', 'brSelect', 'trSelect'].forEach(function (id) {
       var sel = document.getElementById(id);
       var prevVal = sel.value;
       sel.innerHTML = opts || fallback;
       if (prevVal && sel.querySelector('option[value="' + prevVal.replace(/"/g, '') + '"]')) sel.value = prevVal;
-      onSelectChange(id === 'wdSelect' ? 'wd' : 'br');
+      onSelectChange(id === 'wdSelect' ? 'wd' : (id === 'brSelect' ? 'br' : 'tr'));
     });
   }
   function onSelectChange(prefix) {
-    var sel = document.getElementById(prefix === 'wd' ? 'wdSelect' : 'brSelect');
+    var selId = prefix === 'wd' ? 'wdSelect' : (prefix === 'br' ? 'brSelect' : 'trSelect');
+    var sel = document.getElementById(selId);
     var opt = sel.options[sel.selectedIndex];
     var val = opt ? opt.value : '';
     var parts = val.split('|');
@@ -1013,7 +1176,7 @@
 
   /* ---------- สรุป ---------- */
   function loadSummary() {
-    ['sumOnHand', 'sumBroken', 'sumWithdrawn', 'sumFaulty'].forEach(function (id) { document.getElementById(id).innerHTML = '<div class="loading">กำลังโหลด...</div>'; });
+    ['sumOnHand', 'sumBroken', 'sumWithdrawn', 'sumFaulty', 'sumTransferring'].forEach(function (id) { document.getElementById(id).innerHTML = '<div class="loading">กำลังโหลด...</div>'; });
     callApi('getSummary', { teamId: currentTeam }).then(renderSummary).catch(showError);
   }
   function renderSummary(data) {
@@ -1021,6 +1184,7 @@
     document.getElementById('sumBroken').innerHTML = renderSummaryRows(data.filter(function (d) { return d.broken > 0; }), 'broken');
     document.getElementById('sumWithdrawn').innerHTML = renderSummaryRows(data.filter(function (d) { return d.withdrawn > 0; }), 'withdrawn');
     document.getElementById('sumFaulty').innerHTML = renderSummaryRows(data.filter(function (d) { return d.faultyReceived > 0; }), 'faultyReceived');
+    document.getElementById('sumTransferring').innerHTML = renderSummaryRows(data.filter(function (d) { return d.transferring > 0; }), 'transferring');
   }
   function renderSummaryRows(items, field) {
     if (!items.length) return '<div class="empty">ไม่มีข้อมูล</div>';
@@ -1041,14 +1205,16 @@
   function loadHistory() {
     document.getElementById('historyList').innerHTML = '<div class="loading">กำลังโหลด...</div>';
     callApi('getHistory', { teamId: currentTeam, limit: 300 }).then(function (data) {
-      var filtered = historyFilter === 'ALL' ? data : data.filter(function (d) { return d.type === historyFilter; });
+      var filtered = historyFilter === 'ALL' ? data : data.filter(function (d) {
+        return historyFilter === 'TRANSFER' ? d.type.indexOf('TRANSFER') === 0 : d.type === historyFilter;
+      });
       renderHistory(filtered);
     }).catch(showError);
   }
   function renderHistory(data) {
     var el = document.getElementById('historyList');
     if (!data.length) { el.innerHTML = '<div class="empty">ยังไม่มีประวัติ</div>'; return; }
-    var labels = { COUNT: 'นับสต๊อก', ADD_SERIAL: 'เพิ่ม Serial', WITHDRAW: 'เบิกอุปกรณ์', BROKEN: 'แจ้งของเสีย', RETURN_FAULTY: 'รับของเสียจาก Site' };
+    var labels = { COUNT: 'นับสต๊อก', ADD_SERIAL: 'เพิ่ม Serial', WITHDRAW: 'เบิกอุปกรณ์', BROKEN: 'แจ้งของเสีย', RETURN_FAULTY: 'รับของเสียจาก Site', TRANSFER_OUT: 'ส่งโอนให้ทีมอื่น', TRANSFER_IN: 'รับโอนจากทีมอื่น', TRANSFER_CANCELLED: 'ยกเลิกการโอน' };
     el.innerHTML = data.map(function (h) {
       var qtyClass = h.qty < 0 ? 'diff-neg' : (h.qty > 0 ? 'diff-pos' : '');
       var qtyStr = (h.qty > 0 ? '+' : '') + h.qty;
