@@ -61,6 +61,7 @@
   .badge-WITHDRAW{background:#fbeede;color:#a8722e;}
   .badge-BROKEN{background:#f8dedb;color:#c0392b;}
   .badge-ADD_SERIAL{background:var(--sky-pale);color:var(--navy);}
+  .badge-RETURN_FAULTY{background:#ede4f7;color:#6b3fa0;}
   .empty{text-align:center;color:var(--muted);padding:34px 10px;font-size:14px;line-height:1.6;}
   .loading{text-align:center;padding:30px;color:var(--muted);font-size:13px;}
   .diff-pos{color:var(--green);}
@@ -146,7 +147,10 @@
     <div class="tab-panel active" id="tab-count">
       <div class="card row-between">
         <span class="section-label">รายการอุปกรณ์ในรถ</span>
-        <button class="link-plain" onclick="openAddItem()">+ เพิ่มรายการ</button>
+        <div style="display:flex;gap:14px;">
+          <button class="link-plain" onclick="openAddItem()">+ เพิ่มรายการ</button>
+          <button class="link-plain" style="color:var(--red);" onclick="openReceiveFaulty()">↩️ รับของเสียจาก Site</button>
+        </div>
       </div>
 
       <div class="card" id="addItemForm" style="display:none;">
@@ -189,13 +193,59 @@
         </div>
       </div>
 
+      <!-- ฟอร์มรับของเสียจาก Site (เอาของดีไปเปลี่ยน เอาของเสียกลับ) -->
+      <div class="card" id="receiveFaultyForm" style="display:none;border-color:var(--red);">
+        <div class="item-meta" style="margin-bottom:8px;">สำหรับของเสียที่ถอดมาจาก Site (ไม่ใช่ของพร้อมใช้ของทีม) — ไม่ปนกับของดีในสต๊อก</div>
+        <div class="field">
+          <label>ประเภทอุปกรณ์ (Type)</label>
+          <select id="rfType" onchange="onRfTypeChange()">
+            <option value="">-- เลือกประเภท --</option>
+            <option value="Type R">Type R (มี Serial)</option>
+            <option value="Type C">Type C (นับจำนวน)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>รหัสอุปกรณ์ (Mat Code)</label>
+          <input id="rfCode" autocomplete="off" placeholder="พิมพ์ค้นหา Mat Code" oninput="onRfMatInput('code')">
+          <div class="ac-dropdown" id="acRfCode"></div>
+        </div>
+        <div class="field">
+          <label>ชื่ออุปกรณ์ (Material Description)</label>
+          <input id="rfName" autocomplete="off" placeholder="พิมพ์ค้นหาชื่ออุปกรณ์" oninput="onRfMatInput('name')">
+          <div class="ac-dropdown" id="acRfName"></div>
+        </div>
+        <div class="field"><label>Mat Group</label><input id="rfGroup" readonly placeholder="จะขึ้นอัตโนมัติเมื่อเลือกอุปกรณ์"></div>
+
+        <div id="rfTypeCFields">
+          <div class="field"><label>จำนวน</label><input id="rfQty" type="number" value="1" min="1"></div>
+        </div>
+        <div id="rfTypeRFields" style="display:none;">
+          <div class="field">
+            <label>Serial Number <span class="req">*</span></label>
+            <input id="rfSerial" autocomplete="off" placeholder="พิมพ์ หรือกดสแกน Barcode">
+            <button class="btn btn-outline" style="width:100%;margin-top:6px;" onclick="openScanner(function(t){ document.getElementById('rfSerial').value = t; })">📷 Scan Barcode</button>
+          </div>
+        </div>
+
+        <div class="field"><label>เลขที่งาน / Ticket <span class="req">*</span></label><input id="rfJob" placeholder="เช่น INC-12345"></div>
+        <div class="field"><label>Subject Ticket <span class="req">*</span></label><input id="rfSubject" placeholder="หัวข้องาน"></div>
+        <div class="field"><label>Site Code <span class="req">*</span></label><input id="rfSite" placeholder="เช่น CMI0123"></div>
+        <div class="field"><label>Link รูปหลักฐาน (Google Photos) <span class="req">*</span></label><input id="rfPhoto" placeholder="วาง Link รูปจาก Google Photos"></div>
+        <div class="field"><label>สาเหตุ/อาการเสีย <span class="req">*</span></label><textarea id="rfReason" rows="3" placeholder="เช่น ของเดิมที่ Site เสีย เปลี่ยนของใหม่ให้"></textarea></div>
+        <button class="btn btn-red" onclick="submitReceiveFaulty()">บันทึกของเสียที่รับเข้า</button>
+      </div>
+
       <div class="section-label" style="margin:6px 0 6px 2px;">Type C — นับตามจำนวน</div>
       <div id="countList"><div class="loading">กำลังโหลด...</div></div>
       <button class="btn btn-primary" id="saveCountBtn" onclick="saveCount()" style="margin-top:2px;">บันทึกผลนับ (Type C)</button>
 
       <div class="section-label" style="margin:18px 0 6px 2px;">Type R — รายชิ้น (Serial)</div>
       <div id="serialGroupList"><div class="loading">กำลังโหลด...</div></div>
+
+      <div class="section-label" style="margin:18px 0 6px 2px;color:var(--red);">Type R — ของเสียที่รับจาก Site (รอส่งคืน)</div>
+      <div id="faultyGroupList"><div class="loading">กำลังโหลด...</div></div>
     </div>
+
 
     <!-- เบิกอุปกรณ์ -->
     <div class="tab-panel" id="tab-withdraw">
@@ -243,6 +293,8 @@
       <div id="sumBroken"></div>
       <div class="card row-between" style="margin:16px 0 6px;background:#fbeede;border:none;"><b>📤 เบิกไปใช้ (Withdrawn)</b></div>
       <div id="sumWithdrawn"></div>
+      <div class="card row-between" style="margin:16px 0 6px;background:#ede4f7;border:none;"><b>↩️ ของเสียรับจาก Site (รอส่งคืน)</b></div>
+      <div id="sumFaulty"></div>
     </div>
 
     <!-- ประวัติ -->
@@ -256,6 +308,7 @@
         <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('ADD_SERIAL', event)">เพิ่ม Serial</button>
         <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('WITHDRAW', event)">เบิก</button>
         <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('BROKEN', event)">เสีย</button>
+        <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('RETURN_FAULTY', event)">รับของเสีย Site</button>
       </div>
       <div id="historyList"><div class="loading">กำลังโหลด...</div></div>
     </div>
@@ -309,6 +362,7 @@
   var teamList = [];
   var lastAcMatches = [];
   var lastAcTeams = [];
+  var lastAcRfMatches = [];
   var historyFilter = 'ALL';
   var zxingReader = null;
   var scannerCallback = null;
@@ -340,6 +394,8 @@
     if (!e.target.closest('#acCode') && e.target.id !== 'newCode') hideAc('acCode');
     if (!e.target.closest('#acName') && e.target.id !== 'newName') hideAc('acName');
     if (!e.target.closest('#acTeam') && e.target.id !== 'loginTeamId') hideAc('acTeam');
+    if (!e.target.closest('#acRfCode') && e.target.id !== 'rfCode') hideAc('acRfCode');
+    if (!e.target.closest('#acRfName') && e.target.id !== 'rfName') hideAc('acRfName');
   });
 
   /* ---------- Login / Logout ---------- */
@@ -543,6 +599,101 @@
   }
   function hideAc(ddId) { document.getElementById(ddId).style.display = 'none'; }
 
+  /* ---------- รับของเสียจาก Site ---------- */
+  function openReceiveFaulty() { document.getElementById('receiveFaultyForm').style.display = 'block'; }
+  function onRfTypeChange() {
+    var type = document.getElementById('rfType').value;
+    document.getElementById('rfCode').value = '';
+    document.getElementById('rfName').value = '';
+    document.getElementById('rfGroup').value = '';
+    document.getElementById('rfSerial').value = '';
+    hideAc('acRfCode'); hideAc('acRfName');
+    document.getElementById('rfTypeCFields').style.display = type === 'Type C' ? 'block' : 'none';
+    document.getElementById('rfTypeRFields').style.display = type === 'Type R' ? 'block' : 'none';
+  }
+  function onRfMatInput(which) {
+    var type = document.getElementById('rfType').value;
+    var inputEl = which === 'code' ? document.getElementById('rfCode') : document.getElementById('rfName');
+    var ddId = which === 'code' ? 'acRfCode' : 'acRfName';
+    if (!type) { showToast('เลือกประเภท (Type) ก่อน'); inputEl.value = ''; return; }
+    var query = inputEl.value.trim();
+    if (query.length < 1) { hideAc(ddId); return; }
+    var q = query.toLowerCase();
+    var pool = matMaster.filter(function (m) { return m.type === type; });
+    var matches = pool.filter(function (m) {
+      return which === 'code' ? m.code.toLowerCase().indexOf(q) !== -1 : m.name.toLowerCase().indexOf(q) !== -1;
+    }).slice(0, 8);
+    var exact = pool.filter(function (m) {
+      return which === 'code' ? m.code.toLowerCase() === q : m.name.toLowerCase() === q;
+    });
+    if (exact.length === 1) { fillRfMat(exact[0]); hideAc('acRfCode'); hideAc('acRfName'); return; }
+    renderRfAc(ddId, matches);
+  }
+  function renderRfAc(ddId, matches) {
+    lastAcRfMatches = matches;
+    var el = document.getElementById(ddId);
+    if (!matches.length) { el.innerHTML = '<div class="ac-empty">ไม่พบรายการที่ตรงกัน</div>'; el.style.display = 'block'; return; }
+    el.innerHTML = matches.map(function (m, idx) {
+      return '<div class="ac-item" onclick="pickRfMat(' + idx + ')"><div class="code">' + escapeHtml(m.code) + '</div>' +
+        '<div class="desc">' + escapeHtml(m.name) + ' · ' + escapeHtml(m.group) + '</div></div>';
+    }).join('');
+    el.style.display = 'block';
+  }
+  function pickRfMat(idx) {
+    var m = lastAcRfMatches[idx];
+    if (!m) return;
+    fillRfMat(m);
+    hideAc('acRfCode'); hideAc('acRfName');
+  }
+  function fillRfMat(m) {
+    document.getElementById('rfType').value = m.type;
+    document.getElementById('rfTypeCFields').style.display = m.type === 'Type C' ? 'block' : 'none';
+    document.getElementById('rfTypeRFields').style.display = m.type === 'Type R' ? 'block' : 'none';
+    document.getElementById('rfCode').value = m.code;
+    document.getElementById('rfName').value = m.name;
+    document.getElementById('rfGroup').value = m.group;
+  }
+  function submitReceiveFaulty() {
+    var type = document.getElementById('rfType').value;
+    var code = document.getElementById('rfCode').value.trim();
+    var name = document.getElementById('rfName').value.trim();
+    var group = document.getElementById('rfGroup').value.trim();
+    var job = document.getElementById('rfJob').value.trim();
+    var subject = document.getElementById('rfSubject').value.trim();
+    var site = document.getElementById('rfSite').value.trim();
+    var photo = document.getElementById('rfPhoto').value.trim();
+    var reason = document.getElementById('rfReason').value.trim();
+    if (!type) { showToast('เลือกประเภท (Type) ก่อน'); return; }
+    if (!code || !name) { showToast('กรอก/เลือก Mat Code และ Material Description ให้ครบ'); return; }
+    if (!job || !subject || !site) { showToast('กรอกเลขที่งาน / Subject Ticket / Site Code ให้ครบ (จำเป็น)'); return; }
+    if (!photo) { showToast('แนบ Link รูปหลักฐาน (Google Photos) ก่อน'); return; }
+    if (!reason) { showToast('กรอกสาเหตุ/อาการเสีย'); return; }
+
+    function resetRf() {
+      document.getElementById('receiveFaultyForm').style.display = 'none';
+      document.getElementById('rfType').value = '';
+      ['rfCode', 'rfName', 'rfGroup', 'rfSerial', 'rfJob', 'rfSubject', 'rfSite', 'rfPhoto', 'rfReason'].forEach(function (id) { document.getElementById(id).value = ''; });
+      document.getElementById('rfQty').value = 1;
+    }
+
+    if (type === 'Type R') {
+      var serial = document.getElementById('rfSerial').value.trim();
+      if (!serial) { showToast('กรอกหรือสแกน Serial Number ก่อน'); return; }
+      callApi('receiveFaultySerial', { teamId: currentTeam, code: code, name: name, group: group, serial: serial, jobRef: job, subjectTicket: subject, siteCode: site, photoLink: photo, reason: reason, by: currentWho }).then(function () {
+        showToast('บันทึกของเสียที่รับเข้าแล้ว');
+        resetRf();
+        loadSerials();
+      }).catch(showError);
+    } else {
+      var qty = Number(document.getElementById('rfQty').value) || 0;
+      if (qty <= 0) { showToast('จำนวนต้องมากกว่า 0'); return; }
+      callApi('receiveFaultyItem', { teamId: currentTeam, code: code, name: name, qty: qty, jobRef: job, subjectTicket: subject, siteCode: site, photoLink: photo, reason: reason, by: currentWho }).then(function () {
+        showToast('บันทึกของเสียที่รับเข้าแล้ว');
+        resetRf();
+      }).catch(showError);
+    }
+  }
+
   /* ---------- นับสต๊อก: Type C ---------- */
   function loadStock() {
     callApi('getStockList', { teamId: currentTeam }).then(function (data) {
@@ -606,6 +757,7 @@
     callApi('getSerialList', { teamId: currentTeam }).then(function (data) {
       serialData = data;
       renderSerialGroups();
+      renderFaultyGroups();
       rebuildSelectOptions();
     }).catch(showError);
   }
@@ -617,13 +769,21 @@
     });
     return groups;
   }
+  function groupFaultySerials() {
+    var groups = {};
+    serialData.filter(function (s) { return s.status === 'RETURNED_FAULTY'; }).forEach(function (s) {
+      if (!groups[s.code]) groups[s.code] = { code: s.code, name: s.name, group: s.group, serials: [] };
+      groups[s.code].serials.push({ serial: s.serial, addedDate: s.addedDate });
+    });
+    return groups;
+  }
   function formatDateTH(isoStr) {
     if (!isoStr) return '-';
     var d = new Date(isoStr);
     if (isNaN(d.getTime())) return '-';
     return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
-  function daysOnHandLabel(isoStr) {
+  function daysSinceLabel(isoStr, prefix) {
     if (!isoStr) return '';
     var then = new Date(isoStr);
     if (isNaN(then.getTime())) return '';
@@ -632,7 +792,7 @@
     startOfNow = new Date(startOfNow.getFullYear(), startOfNow.getMonth(), startOfNow.getDate());
     var days = Math.round((startOfNow - startOfThen) / 86400000);
     if (days <= 0) return 'วันนี้';
-    return 'อยู่ในมือมาแล้ว ' + days + ' วัน';
+    return prefix + ' ' + days + ' วัน';
   }
   function renderSerialGroups() {
     var el = document.getElementById('serialGroupList');
@@ -644,7 +804,7 @@
       var rows = g.serials.map(function (s) {
         return '<div class="serial-row" style="align-items:flex-start;">' +
           '<div><div>' + escapeHtml(s.serial) + '</div>' +
-          '<div class="item-meta" style="margin-top:2px;">รับเข้า ' + formatDateTH(s.addedDate) + ' · ' + daysOnHandLabel(s.addedDate) + '</div></div>' +
+          '<div class="item-meta" style="margin-top:2px;">รับเข้า ' + formatDateTH(s.addedDate) + ' · ' + daysSinceLabel(s.addedDate, 'อยู่ในมือมาแล้ว') + '</div></div>' +
           '<button class="link-plain" style="color:var(--red);flex-shrink:0;" onclick="event.stopPropagation();deleteSerialConfirm(\'' + jsStr(s.serial) + '\')">ลบ</button></div>';
       }).join('');
       return '<div class="card">' +
@@ -665,6 +825,28 @@
     callApi('deleteSerial', { teamId: currentTeam, serial: serial }).then(function () {
       showToast('ลบแล้ว'); loadSerials();
     }).catch(showError);
+  }
+  function renderFaultyGroups() {
+    var el = document.getElementById('faultyGroupList');
+    var groups = groupFaultySerials();
+    var keys = Object.keys(groups);
+    if (!keys.length) { el.innerHTML = '<div class="empty">ยังไม่มีของเสียที่รับจาก Site</div>'; return; }
+    el.innerHTML = keys.map(function (code) {
+      var g = groups[code];
+      var rows = g.serials.map(function (s) {
+        return '<div class="serial-row" style="align-items:flex-start;">' +
+          '<div><div>' + escapeHtml(s.serial) + '</div>' +
+          '<div class="item-meta" style="margin-top:2px;">รับมา ' + formatDateTH(s.addedDate) + ' · ' + daysSinceLabel(s.addedDate, 'รอส่งคืนมาแล้ว') + '</div></div>' +
+          '<button class="link-plain" style="color:var(--red);flex-shrink:0;" onclick="event.stopPropagation();deleteSerialConfirm(\'' + jsStr(s.serial) + '\')">ลบ</button></div>';
+      }).join('');
+      return '<div class="card" style="border-color:var(--red);">' +
+        '<div class="item-row" style="cursor:pointer;" onclick="toggleExpand(this)">' +
+        '<div><div class="item-name">' + escapeHtml(g.name) + '</div><div class="item-meta">' + escapeHtml(g.code) + (g.group ? ' · ' + escapeHtml(g.group) : '') + '</div></div>' +
+        '<span class="badge badge-BROKEN">' + g.serials.length + ' EA</span>' +
+        '</div>' +
+        '<div class="serial-expand" style="display:none;">' + rows + '</div>' +
+        '</div>';
+    }).join('');
   }
   function submitAddSerial() {
     var code = document.getElementById('newCode').value.trim();
@@ -831,13 +1013,14 @@
 
   /* ---------- สรุป ---------- */
   function loadSummary() {
-    ['sumOnHand', 'sumBroken', 'sumWithdrawn'].forEach(function (id) { document.getElementById(id).innerHTML = '<div class="loading">กำลังโหลด...</div>'; });
+    ['sumOnHand', 'sumBroken', 'sumWithdrawn', 'sumFaulty'].forEach(function (id) { document.getElementById(id).innerHTML = '<div class="loading">กำลังโหลด...</div>'; });
     callApi('getSummary', { teamId: currentTeam }).then(renderSummary).catch(showError);
   }
   function renderSummary(data) {
     document.getElementById('sumOnHand').innerHTML = renderSummaryRows(data.filter(function (d) { return d.onHand > 0; }), 'onHand');
     document.getElementById('sumBroken').innerHTML = renderSummaryRows(data.filter(function (d) { return d.broken > 0; }), 'broken');
     document.getElementById('sumWithdrawn').innerHTML = renderSummaryRows(data.filter(function (d) { return d.withdrawn > 0; }), 'withdrawn');
+    document.getElementById('sumFaulty').innerHTML = renderSummaryRows(data.filter(function (d) { return d.faultyReceived > 0; }), 'faultyReceived');
   }
   function renderSummaryRows(items, field) {
     if (!items.length) return '<div class="empty">ไม่มีข้อมูล</div>';
@@ -865,7 +1048,7 @@
   function renderHistory(data) {
     var el = document.getElementById('historyList');
     if (!data.length) { el.innerHTML = '<div class="empty">ยังไม่มีประวัติ</div>'; return; }
-    var labels = { COUNT: 'นับสต๊อก', ADD_SERIAL: 'เพิ่ม Serial', WITHDRAW: 'เบิกอุปกรณ์', BROKEN: 'แจ้งของเสีย' };
+    var labels = { COUNT: 'นับสต๊อก', ADD_SERIAL: 'เพิ่ม Serial', WITHDRAW: 'เบิกอุปกรณ์', BROKEN: 'แจ้งของเสีย', RETURN_FAULTY: 'รับของเสียจาก Site' };
     el.innerHTML = data.map(function (h) {
       var qtyClass = h.qty < 0 ? 'diff-neg' : (h.qty > 0 ? 'diff-pos' : '');
       var qtyStr = (h.qty > 0 ? '+' : '') + h.qty;
