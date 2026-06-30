@@ -151,6 +151,7 @@
       <div class="card row-between">
         <span class="section-label">รายการอุปกรณ์ในรถ</span>
         <div style="display:flex;gap:14px;">
+          <button class="link-plain" onclick="refreshCountTab()">🔄 รีเฟรช</button>
           <button class="link-plain" onclick="openAddItem()">+ เพิ่มรายการ</button>
           <button class="link-plain" style="color:var(--red);" onclick="openReceiveFaulty()">↩️ รับของเสียจาก Site</button>
         </div>
@@ -388,7 +389,7 @@
 
 <script>
   /* ===== ตั้งค่า: วาง URL ของ Apps Script Web App (.../exec) ตรงนี้ ===== */
-  var API_URL = 'https://script.google.com/macros/s/AKfycbyDKMqS8s4raIaPpR98f4FoBIr6u5rGTF-mDFCYoU42LYMqCG0SbmZ_tk5nS4_FoFWF/exec';
+  var API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   var currentTeam = localStorage.getItem('currentTeamId') || '';
   var currentWho = localStorage.getItem('techName') || '';
@@ -408,8 +409,9 @@
   function callApi(action, params) {
     var url = API_URL + (API_URL.indexOf('?') === -1 ? '?' : '&') +
       'action=' + encodeURIComponent(action) +
-      '&params=' + encodeURIComponent(JSON.stringify(params || {}));
-    return fetch(url).then(function (res) {
+      '&params=' + encodeURIComponent(JSON.stringify(params || {})) +
+      '&_=' + Date.now(); // กันเบราว์เซอร์แคชคำตอบเก่าไว้ (ทุก request ต้อง unique URL เสมอ)
+    return fetch(url, { cache: 'no-store' }).then(function (res) {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return res.json();
     }).then(function (json) {
@@ -538,6 +540,13 @@
     if (evt) evt.currentTarget.classList.add('active');
     if (name === 'history') loadHistory();
     if (name === 'summary') loadSummary();
+    if (name === 'count') loadTransfers();
+  }
+  function refreshCountTab() {
+    loadStock();
+    loadSerials();
+    loadTransfers();
+    showToast('รีเฟรชข้อมูลแล้ว');
   }
 
   function showToast(msg) {
