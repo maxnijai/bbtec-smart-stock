@@ -62,6 +62,7 @@
   .badge-BROKEN{background:#f8dedb;color:#c0392b;}
   .badge-ADD_SERIAL{background:var(--sky-pale);color:var(--navy);}
   .badge-RETURN_FAULTY{background:#ede4f7;color:#6b3fa0;}
+  .badge-RETURN_TO_WH{background:#e3eee4;color:#27ae60;}
   .badge-TRANSFER_OUT{background:#e4e0f7;color:#5a3fa0;}
   .badge-TRANSFER_IN{background:#e0ecf7;color:#2f5fa0;}
   .badge-TRANSFER_CANCELLED{background:#f0f0f0;color:#666;}
@@ -249,6 +250,12 @@
       <div class="section-label" style="margin:18px 0 6px 2px;color:var(--red);">Type R — ของเสียที่รับจาก Site (รอส่งคืน)</div>
       <div id="faultyGroupList"><div class="loading">กำลังโหลด...</div></div>
 
+      <div class="section-label" style="margin:18px 0 6px 2px;color:var(--red);">Type R — ของเสีย (Broken) รอส่งคืน</div>
+      <div id="brokenSerialGroupList"><div class="loading">กำลังโหลด...</div></div>
+
+      <div class="section-label" style="margin:18px 0 6px 2px;color:var(--green);">✅ ส่งคืน Warehouse (YAS) แล้ว</div>
+      <div id="returnedToWHList"><div class="loading">กำลังโหลด...</div></div>
+
       <div class="section-label" style="margin:18px 0 6px 2px;color:#6b3fa0;">📥 ของที่รอรับโอนจากทีมอื่น</div>
       <div id="incomingTransferList"><div class="loading">กำลังโหลด...</div></div>
 
@@ -323,14 +330,16 @@
       <div class="card"><span class="section-label">สรุปของทีมนี้ ณ ปัจจุบัน</span></div>
       <div class="card row-between" style="margin-bottom:6px;background:var(--sky-pale);border:none;"><b>📦 ของในมือ (On Hand)</b></div>
       <div id="sumOnHand"><div class="loading">กำลังโหลด...</div></div>
-      <div class="card row-between" style="margin:16px 0 6px;background:#f8dedb;border:none;"><b>⚠️ ของเสีย (Broken)</b></div>
+      <div class="card row-between" style="margin:16px 0 6px;background:#f8dedb;border:none;"><b>⚠️ ของเสีย (Broken) — รอส่งคืน YAS</b></div>
       <div id="sumBroken"></div>
       <div class="card row-between" style="margin:16px 0 6px;background:#fbeede;border:none;"><b>📤 เบิกไปใช้ (Withdrawn)</b></div>
       <div id="sumWithdrawn"></div>
-      <div class="card row-between" style="margin:16px 0 6px;background:#ede4f7;border:none;"><b>↩️ ของเสียรับจาก Site (รอส่งคืน)</b></div>
+      <div class="card row-between" style="margin:16px 0 6px;background:#ede4f7;border:none;"><b>↩️ ของเสียรับจาก Site — รอส่งคืน YAS</b></div>
       <div id="sumFaulty"></div>
       <div class="card row-between" style="margin:16px 0 6px;background:#ede4f7;border:none;"><b>🔁 อยู่ระหว่างโอนย้าย (รอยืนยัน)</b></div>
       <div id="sumTransferring"></div>
+      <div class="card row-between" style="margin:16px 0 6px;background:#e3eee4;border:none;"><b>✅ ส่งคืน Warehouse (YAS) แล้ว</b></div>
+      <div id="sumReturnedToWH"></div>
     </div>
 
     <!-- ประวัติ -->
@@ -345,6 +354,7 @@
         <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('WITHDRAW', event)">เบิก</button>
         <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('BROKEN', event)">เสีย</button>
         <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('RETURN_FAULTY', event)">รับของเสีย Site</button>
+        <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('RETURN_TO_WH', event)">ส่งคืน YAS</button>
         <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('TRANSFER', event)">โอนของ</button>
       </div>
       <div id="historyList"><div class="loading">กำลังโหลด...</div></div>
@@ -389,7 +399,7 @@
 
 <script>
   /* ===== ตั้งค่า: วาง URL ของ Apps Script Web App (.../exec) ตรงนี้ ===== */
-  var API_URL = 'https://script.google.com/macros/s/AKfycbyDKMqS8s4raIaPpR98f4FoBIr6u5rGTF-mDFCYoU42LYMqCG0SbmZ_tk5nS4_FoFWF/exec';
+  var API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   var currentTeam = localStorage.getItem('currentTeamId') || '';
   var currentWho = localStorage.getItem('techName') || '';
@@ -929,6 +939,8 @@
       serialData = data;
       renderSerialGroups();
       renderFaultyGroups();
+      renderBrokenSerialGroups();
+      renderReturnedToWHGroups();
       rebuildSelectOptions();
     }).catch(showError);
   }
@@ -943,6 +955,22 @@
   function groupFaultySerials() {
     var groups = {};
     serialData.filter(function (s) { return s.status === 'RETURNED_FAULTY'; }).forEach(function (s) {
+      if (!groups[s.code]) groups[s.code] = { code: s.code, name: s.name, group: s.group, serials: [] };
+      groups[s.code].serials.push({ serial: s.serial, addedDate: s.addedDate });
+    });
+    return groups;
+  }
+  function groupBrokenSerials() {
+    var groups = {};
+    serialData.filter(function (s) { return s.status === 'BROKEN'; }).forEach(function (s) {
+      if (!groups[s.code]) groups[s.code] = { code: s.code, name: s.name, group: s.group, serials: [] };
+      groups[s.code].serials.push({ serial: s.serial, addedDate: s.addedDate });
+    });
+    return groups;
+  }
+  function groupReturnedToWHSerials() {
+    var groups = {};
+    serialData.filter(function (s) { return s.status === 'RETURNED_TO_WH'; }).forEach(function (s) {
       if (!groups[s.code]) groups[s.code] = { code: s.code, name: s.name, group: s.group, serials: [] };
       groups[s.code].serials.push({ serial: s.serial, addedDate: s.addedDate });
     });
@@ -1008,7 +1036,10 @@
         return '<div class="serial-row" style="align-items:flex-start;">' +
           '<div><div>' + escapeHtml(s.serial) + '</div>' +
           '<div class="item-meta" style="margin-top:2px;">รับมา ' + formatDateTH(s.addedDate) + ' · ' + daysSinceLabel(s.addedDate, 'รอส่งคืนมาแล้ว') + '</div></div>' +
-          '<button class="link-plain" style="color:var(--red);flex-shrink:0;" onclick="event.stopPropagation();deleteSerialConfirm(\'' + jsStr(s.serial) + '\')">ลบ</button></div>';
+          '<div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">' +
+          '<button class="btn btn-outline" style="padding:6px 10px;font-size:12px;color:var(--green);border-color:var(--green);" onclick="event.stopPropagation();returnSerialToWH(\'' + jsStr(s.serial) + '\')">ส่งคืน YAS</button>' +
+          '<button class="link-plain" style="color:var(--red);" onclick="event.stopPropagation();deleteSerialConfirm(\'' + jsStr(s.serial) + '\')">ลบ</button>' +
+          '</div></div>';
       }).join('');
       return '<div class="card" style="border-color:var(--red);">' +
         '<div class="item-row" style="cursor:pointer;" onclick="toggleExpand(this)">' +
@@ -1018,6 +1049,56 @@
         '<div class="serial-expand" style="display:none;">' + rows + '</div>' +
         '</div>';
     }).join('');
+  }
+  function renderBrokenSerialGroups() {
+    var el = document.getElementById('brokenSerialGroupList');
+    var groups = groupBrokenSerials();
+    var keys = Object.keys(groups);
+    if (!keys.length) { el.innerHTML = '<div class="empty">ยังไม่มีของเสีย (Broken)</div>'; return; }
+    el.innerHTML = keys.map(function (code) {
+      var g = groups[code];
+      var rows = g.serials.map(function (s) {
+        return '<div class="serial-row" style="align-items:flex-start;">' +
+          '<div><div>' + escapeHtml(s.serial) + '</div>' +
+          '<div class="item-meta" style="margin-top:2px;">แจ้งเสีย ' + formatDateTH(s.addedDate) + '</div></div>' +
+          '<button class="btn btn-outline" style="padding:6px 10px;font-size:12px;color:var(--green);border-color:var(--green);flex-shrink:0;" onclick="event.stopPropagation();returnSerialToWH(\'' + jsStr(s.serial) + '\')">ส่งคืน YAS</button>' +
+          '</div>';
+      }).join('');
+      return '<div class="card" style="border-color:var(--red);">' +
+        '<div class="item-row" style="cursor:pointer;" onclick="toggleExpand(this)">' +
+        '<div><div class="item-name">' + escapeHtml(g.name) + '</div><div class="item-meta">' + escapeHtml(g.code) + (g.group ? ' · ' + escapeHtml(g.group) : '') + '</div></div>' +
+        '<span class="badge badge-BROKEN">' + g.serials.length + ' EA</span>' +
+        '</div>' +
+        '<div class="serial-expand" style="display:none;">' + rows + '</div>' +
+        '</div>';
+    }).join('');
+  }
+  function renderReturnedToWHGroups() {
+    var el = document.getElementById('returnedToWHList');
+    var groups = groupReturnedToWHSerials();
+    var keys = Object.keys(groups);
+    if (!keys.length) { el.innerHTML = '<div class="empty">ยังไม่มีที่ส่งคืนแล้ว</div>'; return; }
+    el.innerHTML = keys.map(function (code) {
+      var g = groups[code];
+      var rows = g.serials.map(function (s) {
+        return '<div class="serial-row"><div>' + escapeHtml(s.serial) + '</div>' +
+          '<button class="link-plain" style="color:var(--red);" onclick="event.stopPropagation();deleteSerialConfirm(\'' + jsStr(s.serial) + '\')">ลบ</button></div>';
+      }).join('');
+      return '<div class="card" style="border-color:var(--green);">' +
+        '<div class="item-row" style="cursor:pointer;" onclick="toggleExpand(this)">' +
+        '<div><div class="item-name">' + escapeHtml(g.name) + '</div><div class="item-meta">' + escapeHtml(g.code) + (g.group ? ' · ' + escapeHtml(g.group) : '') + '</div></div>' +
+        '<span class="badge badge-COUNT">' + g.serials.length + ' EA</span>' +
+        '</div>' +
+        '<div class="serial-expand" style="display:none;">' + rows + '</div>' +
+        '</div>';
+    }).join('');
+  }
+  function returnSerialToWH(serial) {
+    if (!confirm('ยืนยันว่าส่ง Serial ' + serial + ' คืน Warehouse (YAS) แล้ว?')) return;
+    callApi('returnSerialToWarehouse', { teamId: currentTeam, serial: serial, by: currentWho }).then(function () {
+      showToast('บันทึก: ส่งคืน YAS แล้ว');
+      loadSerials();
+    }).catch(showError);
   }
   function submitAddSerial() {
     var code = document.getElementById('newCode').value.trim();
@@ -1185,7 +1266,7 @@
 
   /* ---------- สรุป ---------- */
   function loadSummary() {
-    ['sumOnHand', 'sumBroken', 'sumWithdrawn', 'sumFaulty', 'sumTransferring'].forEach(function (id) { document.getElementById(id).innerHTML = '<div class="loading">กำลังโหลด...</div>'; });
+    ['sumOnHand', 'sumBroken', 'sumWithdrawn', 'sumFaulty', 'sumTransferring', 'sumReturnedToWH'].forEach(function (id) { document.getElementById(id).innerHTML = '<div class="loading">กำลังโหลด...</div>'; });
     callApi('getSummary', { teamId: currentTeam }).then(renderSummary).catch(showError);
   }
   function renderSummary(data) {
@@ -1194,6 +1275,7 @@
     document.getElementById('sumWithdrawn').innerHTML = renderSummaryRows(data.filter(function (d) { return d.withdrawn > 0; }), 'withdrawn');
     document.getElementById('sumFaulty').innerHTML = renderSummaryRows(data.filter(function (d) { return d.faultyReceived > 0; }), 'faultyReceived');
     document.getElementById('sumTransferring').innerHTML = renderSummaryRows(data.filter(function (d) { return d.transferring > 0; }), 'transferring');
+    document.getElementById('sumReturnedToWH').innerHTML = renderSummaryRows(data.filter(function (d) { return d.returnedToWH > 0; }), 'returnedToWH');
   }
   function renderSummaryRows(items, field) {
     if (!items.length) return '<div class="empty">ไม่มีข้อมูล</div>';
@@ -1223,7 +1305,7 @@
   function renderHistory(data) {
     var el = document.getElementById('historyList');
     if (!data.length) { el.innerHTML = '<div class="empty">ยังไม่มีประวัติ</div>'; return; }
-    var labels = { COUNT: 'นับสต๊อก', ADD_SERIAL: 'เพิ่ม Serial', WITHDRAW: 'เบิกอุปกรณ์', BROKEN: 'แจ้งของเสีย', RETURN_FAULTY: 'รับของเสียจาก Site', TRANSFER_OUT: 'ส่งโอนให้ทีมอื่น', TRANSFER_IN: 'รับโอนจากทีมอื่น', TRANSFER_CANCELLED: 'ยกเลิกการโอน' };
+    var labels = { COUNT: 'นับสต๊อก', ADD_SERIAL: 'เพิ่ม Serial', WITHDRAW: 'เบิกอุปกรณ์', BROKEN: 'แจ้งของเสีย', RETURN_FAULTY: 'รับของเสียจาก Site', RETURN_TO_WH: 'ส่งคืน Warehouse (YAS)', TRANSFER_OUT: 'ส่งโอนให้ทีมอื่น', TRANSFER_IN: 'รับโอนจากทีมอื่น', TRANSFER_CANCELLED: 'ยกเลิกการโอน' };
     el.innerHTML = data.map(function (h) {
       var qtyClass = h.qty < 0 ? 'diff-neg' : (h.qty > 0 ? 'diff-pos' : '');
       var qtyStr = (h.qty > 0 ? '+' : '') + h.qty;
