@@ -63,6 +63,7 @@
   .badge-ADD_SERIAL{background:var(--sky-pale);color:var(--navy);}
   .badge-RETURN_FAULTY{background:#ede4f7;color:#6b3fa0;}
   .badge-RETURN_TO_WH{background:#e3eee4;color:#27ae60;}
+  .badge-RETURN_GOOD_TO_WH{background:#d6eaf8;color:#1d4e89;}
   .badge-TRANSFER_OUT{background:#e4e0f7;color:#5a3fa0;}
   .badge-TRANSFER_IN{background:#e0ecf7;color:#2f5fa0;}
   .badge-TRANSFER_CANCELLED{background:#f0f0f0;color:#666;}
@@ -355,6 +356,7 @@
         <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('BROKEN', event)">เสีย</button>
         <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('RETURN_FAULTY', event)">รับของเสีย Site</button>
         <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('RETURN_TO_WH', event)">ส่งคืน YAS</button>
+        <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('RETURN_GOOD_TO_WH', event)">คืนของดี YAS</button>
         <button class="btn btn-outline hist-filter-btn" onclick="setHistoryFilter('TRANSFER', event)">โอนของ</button>
       </div>
       <div id="historyList"><div class="loading">กำลังโหลด...</div></div>
@@ -399,7 +401,7 @@
 
 <script>
   /* ===== ตั้งค่า: วาง URL ของ Apps Script Web App (.../exec) ตรงนี้ ===== */
-  var API_URL = 'https://script.google.com/macros/s/AKfycbyDKMqS8s4raIaPpR98f4FoBIr6u5rGTF-mDFCYoU42LYMqCG0SbmZ_tk5nS4_FoFWF/exec';
+  var API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   var currentTeam = localStorage.getItem('currentTeamId') || '';
   var currentWho = localStorage.getItem('techName') || '';
@@ -1004,7 +1006,10 @@
         return '<div class="serial-row" style="align-items:flex-start;">' +
           '<div><div>' + escapeHtml(s.serial) + '</div>' +
           '<div class="item-meta" style="margin-top:2px;">รับเข้า ' + formatDateTH(s.addedDate) + ' · ' + daysSinceLabel(s.addedDate, 'อยู่ในมือมาแล้ว') + '</div></div>' +
-          '<button class="link-plain" style="color:var(--red);flex-shrink:0;" onclick="event.stopPropagation();deleteSerialConfirm(\'' + jsStr(s.serial) + '\')">ลบ</button></div>';
+          '<div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">' +
+          '<button class="btn btn-outline" style="padding:5px 9px;font-size:11px;color:var(--navy);border-color:var(--navy);" onclick="event.stopPropagation();returnGoodToWH(\'' + jsStr(s.serial) + '\')">คืน YAS</button>' +
+          '<button class="link-plain" style="color:var(--red);" onclick="event.stopPropagation();deleteSerialConfirm(\'' + jsStr(s.serial) + '\')">ลบ</button>' +
+          '</div></div>';
       }).join('');
       return '<div class="card">' +
         '<div class="item-row" style="cursor:pointer;" onclick="toggleExpand(this)">' +
@@ -1014,6 +1019,13 @@
         '<div class="serial-expand" style="display:none;">' + rows + '</div>' +
         '</div>';
     }).join('');
+  }
+  function returnGoodToWH(serial) {
+    if (!confirm('ยืนยันคืน Serial ' + serial + ' (ของดี) ให้ Warehouse (YAS)?')) return;
+    callApi('returnGoodSerialToWarehouse', { teamId: currentTeam, serial: serial, by: currentWho }).then(function () {
+      showToast('บันทึก: คืนของดีให้ YAS แล้ว');
+      loadSerials();
+    }).catch(showError);
   }
   function toggleExpand(headerEl) {
     var box = headerEl.parentElement.querySelector('.serial-expand');
@@ -1305,7 +1317,7 @@
   function renderHistory(data) {
     var el = document.getElementById('historyList');
     if (!data.length) { el.innerHTML = '<div class="empty">ยังไม่มีประวัติ</div>'; return; }
-    var labels = { COUNT: 'นับสต๊อก', ADD_SERIAL: 'เพิ่ม Serial', WITHDRAW: 'เบิกอุปกรณ์', BROKEN: 'แจ้งของเสีย', RETURN_FAULTY: 'รับของเสียจาก Site', RETURN_TO_WH: 'ส่งคืน Warehouse (YAS)', TRANSFER_OUT: 'ส่งโอนให้ทีมอื่น', TRANSFER_IN: 'รับโอนจากทีมอื่น', TRANSFER_CANCELLED: 'ยกเลิกการโอน' };
+    var labels = { COUNT: 'นับสต๊อก', ADD_SERIAL: 'เพิ่ม Serial', WITHDRAW: 'เบิกอุปกรณ์', BROKEN: 'แจ้งของเสีย', RETURN_FAULTY: 'รับของเสียจาก Site', RETURN_TO_WH: 'ส่งคืน Warehouse (YAS)', RETURN_GOOD_TO_WH: 'คืนของดีให้ YAS', TRANSFER_OUT: 'ส่งโอนให้ทีมอื่น', TRANSFER_IN: 'รับโอนจากทีมอื่น', TRANSFER_CANCELLED: 'ยกเลิกการโอน' };
     el.innerHTML = data.map(function (h) {
       var qtyClass = h.qty < 0 ? 'diff-neg' : (h.qty > 0 ? 'diff-pos' : '');
       var qtyStr = (h.qty > 0 ? '+' : '') + h.qty;
