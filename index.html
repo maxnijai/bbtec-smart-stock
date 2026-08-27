@@ -127,6 +127,41 @@
   </div>
 </div>
 
+<!-- หน้าเลือก Module -->
+<div id="homeScreen" style="display:none;">
+  <div class="header">
+    <div class="brand">
+      <img src="" id="homeLogoImg" alt="logo" style="display:none;">
+      <div>
+        <div class="t1"><b>BBTEC</b> <span>Smart Stock</span></div>
+        <div class="t2">by MAXMA</div>
+      </div>
+    </div>
+    <div class="headerActions">
+      <div class="who" id="homeWhoLabel">👤</div>
+      <button class="link-plain" style="color:#fff;" onclick="doLogout()">ออก</button>
+    </div>
+  </div>
+  <div class="teambar">ทีม: <b id="homeTeamLabel"></b></div>
+  <div style="padding:16px;">
+    <div style="text-align:center;padding:16px 0 8px;color:var(--muted);font-size:13px;">เลือกหมวดที่ต้องการ</div>
+    <div class="card" onclick="goToModule('stock')" style="cursor:pointer;padding:22px 18px;margin-bottom:14px;border-left:5px solid var(--navy);display:flex;align-items:center;gap:16px;">
+      <div style="font-size:40px;">📦</div>
+      <div>
+        <div class="item-name" style="font-size:17px;">จัดการสต๊อก</div>
+        <div class="item-meta" style="margin-top:3px;">นับสต๊อก · เบิก · โอนของ · แจ้งของเสีย · สรุป</div>
+      </div>
+    </div>
+    <div class="card" onclick="goToModule('checkin')" style="cursor:pointer;padding:22px 18px;margin-bottom:14px;border-left:5px solid var(--green);display:flex;align-items:center;gap:16px;">
+      <div style="font-size:40px;">👥</div>
+      <div>
+        <div class="item-name" style="font-size:17px;">รายงานตัวก่อนทำงาน</div>
+        <div class="item-meta" style="margin-top:3px;">ถ่ายรูป · AI นับคน · บันทึกการมาทำงาน</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- หน้าแอปหลัก -->
 <div id="appScreen" style="display:none;">
 
@@ -140,7 +175,7 @@
     </div>
     <div class="headerActions">
       <div class="who" id="whoLabel" onclick="changeWho()">👤</div>
-      <button class="link-plain" style="color:#fff;" onclick="openChangePassword()">🔑</button>
+      <button class="link-plain" style="color:#fff;margin-right:4px;" onclick="showHomeScreen()">← กลับ</button><button class="link-plain" style="color:#fff;" onclick="openChangePassword()">🔑</button>
       <button class="link-plain" style="color:#fff;" onclick="doLogout()">ออก</button>
     </div>
   </div>
@@ -507,7 +542,7 @@
         '⚠️ ยังไม่ได้ตั้งค่า API_URL<br><br>เปิดไฟล์ index.html แก้ตัวแปร <code>API_URL</code> ที่ด้านบนของ &lt;script&gt; ให้เป็นลิงก์ Apps Script Web App (.../exec) ของคุณ แล้ว deploy ใหม่บน GitHub Pages</div>';
       return;
     }
-    if (currentTeam) { showApp(); } else { showLogin(); }
+    if (currentTeam) { showHomeScreen(); } else { showLogin(); }
   };
 
   document.addEventListener('click', function (e) {
@@ -522,20 +557,48 @@
   /* ---------- Login / Logout ---------- */
   function showLogin() {
     document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('homeScreen').style.display = 'none';
     document.getElementById('appScreen').style.display = 'none';
     callApi('getTeamIdList', {}).then(function (data) { teamList = data; }).catch(function () {});
   }
+  function showHomeScreen() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('homeScreen').style.display = 'block';
+    document.getElementById('appScreen').style.display = 'none';
+    document.getElementById('homeTeamLabel').textContent = currentTeam;
+    document.getElementById('homeWhoLabel').textContent = '👤 ' + (currentWho || currentTeam);
+  }
   function showApp() {
     document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('homeScreen').style.display = 'none';
     document.getElementById('appScreen').style.display = 'block';
     document.getElementById('teamLabel').textContent = currentTeam;
     if (!currentWho) currentWho = currentTeam;
     updateWhoLabel();
-    loadStock();
-    loadSerials();
-    loadMatMaster();
-    loadTeamList();
-    loadTransfers();
+  }
+  function goToModule(module) {
+    showApp();
+    var allNavBtns = document.querySelectorAll('.nav-btn');
+    allNavBtns.forEach(function(b) { b.style.display = ''; b.classList.remove('active'); });
+    var allTabs = document.querySelectorAll('.tab-panel');
+    allTabs.forEach(function(p) { p.classList.remove('active'); });
+    if (module === 'stock') {
+      allNavBtns.forEach(function(b) {
+        if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf('checkin') >= 0) b.style.display = 'none';
+        if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf("'count'") >= 0) b.classList.add('active');
+      });
+      document.getElementById('tab-count').classList.add('active');
+      loadStock();
+      loadSerials();
+      loadTransfers();
+    } else if (module === 'checkin') {
+      allNavBtns.forEach(function(b) {
+        if (!b.getAttribute('onclick') || b.getAttribute('onclick').indexOf('checkin') < 0) b.style.display = 'none';
+        else b.classList.add('active');
+      });
+      document.getElementById('tab-checkin').classList.add('active');
+      loadCheckinTab();
+    }
   }
   function loadTeamList() {
     callApi('getTeamIdList', {}).then(function (data) { teamList = data; }).catch(function () {});
@@ -570,7 +633,7 @@
       currentTeam = res.teamId;
       localStorage.setItem('currentTeamId', currentTeam);
       document.getElementById('loginPassword').value = '';
-      showApp();
+      showHomeScreen();
     }).catch(function (err) {
       errEl.textContent = (err && err.message) || 'เข้าสู่ระบบไม่สำเร็จ';
     });
@@ -675,7 +738,17 @@
 
   /* ---------- Mat Master / Autocomplete ---------- */
   function loadMatMaster() {
-    callApi('getMatList', {}).then(function (data) { matMaster = data; }).catch(showError);
+    var cached = sessionStorage.getItem('matMaster_' + currentTeam);
+    if (cached) { try { matMaster = JSON.parse(cached); rebuildSelectOptions(); return; } catch(e) {} }
+    callApi('getMatList', {}).then(function (data) {
+      matMaster = data;
+      try { sessionStorage.setItem('matMaster_' + currentTeam, JSON.stringify(data)); } catch(e) {}
+      rebuildSelectOptions();
+    }).catch(showError);
+  }
+  function openAddItem() {
+    document.getElementById('addItemForm').style.display = 'block';
+    if (!matMaster.length) loadMatMaster();
   }
   function onTypeChange() {
     var type = document.getElementById('newType').value;
@@ -988,7 +1061,6 @@
       loadStock();
     }).catch(function (err) { showError(err); btn.textContent = 'บันทึกผลนับ (Type C)'; });
   }
-  function openAddItem() { document.getElementById('addItemForm').style.display = 'block'; }
   function submitAddStock() {
     var code = document.getElementById('newCode').value.trim();
     var name = document.getElementById('newName').value.trim();
