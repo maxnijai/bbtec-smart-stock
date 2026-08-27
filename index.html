@@ -416,35 +416,39 @@
           <input id="ciDate" type="date">
         </div>
         <div class="field">
-          <label>ถ่ายรูปทีมงาน <span class="req">*</span> <span style="color:var(--muted);font-weight:400;">(ถ่ายสดเท่านั้น)</span></label>
+          <label>ภาพผู้ปฏิบัติงาน <span class="req">*</span> <span style="color:var(--muted);font-weight:400;">(Live Camera เท่านั้น)</span></label>
           <!-- capture="environment" = กล้องหลัง ป้องกันเลือกจากคลัง -->
           <input type="file" id="ciCameraInput" accept="image/jpeg,image/png" capture="environment" style="display:none;" onchange="onCiPhotoSelected(this)">
-          <button class="btn btn-accent" onclick="document.getElementById('ciCameraInput').click()">📷 เปิดกล้องถ่ายรูป</button>
+          <button class="btn btn-accent" onclick="requestCiGPS(); document.getElementById('ciCameraInput').click()">📷 ถ่ายภาพ</button>
         </div>
 
         <!-- preview + timestamp overlay -->
         <div id="ciPhotoPreview" style="display:none;margin-top:8px;">
           <canvas id="ciCanvas" style="width:100%;border-radius:8px;border:2px solid var(--green);display:block;"></canvas>
-          <div class="item-meta" style="margin-top:4px;text-align:center;color:var(--green);">✅ รูปพร้อมส่ง (มี timestamp ฝังไว้แล้ว)</div>
+          <div class="item-meta" style="margin-top:4px;text-align:center;color:var(--green);">✅ ภาพพร้อมส่ง — Timestamp และพิกัดถูกฝังแล้ว</div>
         </div>
 
         <div class="field" style="margin-top:12px;">
-          <label>จำนวนคนทำงานวันนี้ (ที่แจ้ง) <span class="req">*</span></label>
+          <label>จำนวนผู้ปฏิบัติงาน <span class="req">*</span></label>
           <input id="ciCount" type="number" min="1" max="99" placeholder="กรอกจำนวนคน">
         </div>
 
+        <div class="field" id="ciGpsField" style="margin-top:8px;">
+          <label style="font-size:12px;color:var(--muted);">📍 พิกัด GPS (อัตโนมัติ)</label>
+          <input id="ciGpsDisplay" readonly style="background:var(--sky-pale);font-size:12px;color:var(--muted);" placeholder="กำลังรับพิกัด...">
+        </div>
         <div class="box box-amber" style="margin-bottom:12px;font-size:12px;">
-          ⚠️ AI จะนับคนในรูปอัตโนมัติ ถ้าจำนวนไม่ตรงกับที่แจ้ง จะถูก Flag รอแอดมินตรวจสอบ
+          ℹ️ AI ตรวจนับอัตโนมัติ หากจำนวนไม่ตรงกัน รายการจะถูก Flag เพื่อให้ผู้ดูแลตรวจสอบ
         </div>
 
-        <button class="btn btn-primary" id="ciSubmitBtn" onclick="submitCheckIn()">รายงานตัว</button>
+        <button class="btn btn-primary" id="ciSubmitBtn" onclick="submitCheckIn()">ยืนยันรายงานตัว</button>
       </div>
 
       <!-- ผลการรายงานตัว -->
       <div id="ciResult" style="display:none;"></div>
 
       <!-- ประวัติการรายงานตัว -->
-      <div class="section-label" style="margin:18px 0 6px 2px;">ประวัติการรายงานตัว (30 รายการล่าสุด)</div>
+      <div class="section-label" style="margin:18px 0 6px 2px;">ประวัติการรายงานตัว</div>
       <div id="ciHistoryList"><div class="loading">กำลังโหลด...</div></div>
     </div>
 
@@ -1480,7 +1484,9 @@
      รายงานตัวก่อนทำงาน — Check-in
      ============================================================ */
 
-  var ciPhotoBase64 = null; // base64 ของรูปที่ประทับ timestamp แล้ว
+  var ciPhotoBase64 = null; // base64 ขนาดเล็กสำหรับส่ง API
+  var gpsCoords = null;         // {lat, lon} จาก Geolocation
+  var ciCountdownTimer = null;
 
   function loadCheckinTab() {
     // ตั้งค่าเริ่มต้น
@@ -1546,11 +1552,12 @@
         var fsz = Math.round(barH * 0.48);
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold ' + fsz + 'px Arial, sans-serif';
-        ctx.fillText(currentTeam + '  |  ' + ts, Math.round(w * 0.02), h - Math.round(barH * 0.22));
+        var gpsText = gpsCoords ? ('  📍 ' + gpsCoords.lat + ', ' + gpsCoords.lon) : '';
+        ctx.fillText(currentTeam + '  |  ' + ts + gpsText, Math.round(w * 0.02), h - Math.round(barH * 0.22));
 
         // ---- Canvas ขนาดเล็ก 100px สำหรับส่ง API (ขนาดเล็ก ~3KB) ----
         var tinyCanvas = document.createElement('canvas');
-        var tinyW = 100;
+        var tinyW = 150; // เพิ่มจาก 100px เพื่อคุณภาพรูปใน Drive ที่ดีขึ้น
         var tinyScale = Math.min(1, tinyW / img.width);
         tinyCanvas.width = Math.round(img.width * tinyScale);
         tinyCanvas.height = Math.round(img.height * tinyScale);
@@ -1558,7 +1565,7 @@
         tinyCtx.drawImage(img, 0, 0, tinyCanvas.width, tinyCanvas.height);
 
         // เก็บ base64 ขนาดเล็กไว้ส่ง API — Gemini นับคนที่ 100px ได้ปกติ
-        ciPhotoBase64 = tinyCanvas.toDataURL('image/jpeg', 0.60).split(',')[1];
+        ciPhotoBase64 = tinyCanvas.toDataURL('image/jpeg', 0.78).split(',')[1];
         document.getElementById('ciPhotoPreview').style.display = 'block';
       };
       img.src = e.target.result;
@@ -1575,15 +1582,25 @@
 
     var btn = document.getElementById('ciSubmitBtn');
     btn.disabled = true;
-    btn.textContent = 'กำลังส่งข้อมูล + AI วิเคราะห์รูป...';
+    // เริ่ม countdown 30 วินาที
+    var remaining = 30;
+    btn.textContent = 'AI กำลังตรวจสอบ... (' + remaining + 's)';
+    ciCountdownTimer = setInterval(function () {
+      remaining--;
+      if (remaining > 0) btn.textContent = 'AI กำลังตรวจสอบ... (' + remaining + 's)';
+      else { clearInterval(ciCountdownTimer); btn.textContent = 'กำลังบันทึกข้อมูล...'; }
+    }, 1000);
 
     callApi('checkIn', {
       teamId: currentTeam,
       photoBase64: ciPhotoBase64,
       reportedCount: count,
       date: date,
-      by: currentWho
+      by: currentWho,
+      lat: gpsCoords ? gpsCoords.lat : '',
+      lon: gpsCoords ? gpsCoords.lon : ''
     }).then(function (res) {
+      clearInterval(ciCountdownTimer);
       var resultEl = document.getElementById('ciResult');
       var flagHtml = res.flag === 'OK'
         ? '<div style="color:var(--green);font-size:18px;font-weight:bold;margin-bottom:6px;">✅ รายงานตัวสำเร็จ</div>'
@@ -1600,10 +1617,27 @@
       ciPhotoBase64 = null;
       loadCiHistory();
     }).catch(function (err) {
+      clearInterval(ciCountdownTimer);
       showError(err);
       btn.disabled = false;
-      btn.textContent = 'รายงานตัว';
+      btn.textContent = 'ยืนยันรายงานตัว';
     });
+  }
+
+  function requestCiGPS() {
+    if (!navigator.geolocation) return;
+    var el = document.getElementById('ciGpsDisplay');
+    if (el) el.value = 'กำลังรับพิกัด...';
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      gpsCoords = {
+        lat: pos.coords.latitude.toFixed(6),
+        lon: pos.coords.longitude.toFixed(6)
+      };
+      if (el) el.value = gpsCoords.lat + ', ' + gpsCoords.lon;
+    }, function () {
+      gpsCoords = null;
+      if (el) el.value = 'ไม่สามารถรับพิกัดได้';
+    }, { timeout: 10000, enableHighAccuracy: true });
   }
 
   function loadCiHistory() {
@@ -1621,6 +1655,7 @@
         '<div class="item-row"><div><b>' + escapeHtml(r.date) + '</b></div>' + flagBadge + '</div>' +
         '<div class="item-meta" style="margin-top:4px;">แจ้ง <b>' + r.reportedCount + ' คน</b> · AI นับ <b>' + r.aiCount + ' คน</b></div>' +
         '<div class="item-meta">' + escapeHtml(r.note) + '</div>' +
+        (r.lat ? '<div class="item-meta">📍 ' + escapeHtml(r.lat) + ', ' + escapeHtml(r.lon) + '</div>' : '') +
         '<div class="item-meta">' + escapeHtml(r.timestamp) + ' · โดย ' + escapeHtml(r.by) + '</div>' +
         (r.photoUrl ? '<a href="' + escapeHtml(r.photoUrl) + '" target="_blank" style="font-size:11px;color:var(--navy);">📷 ดูรูป Drive</a>' : '') +
         '</div>';
