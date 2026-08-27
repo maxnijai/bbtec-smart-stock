@@ -484,6 +484,23 @@
     });
   }
 
+  // ใช้ POST สำหรับ action ที่มีข้อมูลใหญ่ (เช่น checkIn ที่มีรูป base64)
+  // ส่ง Content-Type: text/plain เพื่อหลีกเลี่ยง CORS preflight
+  function callApiPost(action, params) {
+    return fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: action, params: params || {} }),
+      cache: 'no-store'
+    }).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }).then(function (json) {
+      if (!json || !json.ok) throw new Error((json && json.error) || 'เกิดข้อผิดพลาด');
+      return json.data;
+    });
+  }
+
   window.onload = function () {
     if (!API_URL || API_URL.indexOf('PASTE_YOUR') === 0) {
       document.body.innerHTML = '<div style="padding:30px;font-family:sans-serif;text-align:center;color:#c0392b;">' +
@@ -1482,7 +1499,7 @@
     btn.disabled = true;
     btn.textContent = 'กำลังส่งข้อมูล + AI วิเคราะห์รูป...';
 
-    callApi('checkIn', {
+    callApiPost('checkIn', {
       teamId: currentTeam,
       photoBase64: ciPhotoBase64,
       reportedCount: count,
