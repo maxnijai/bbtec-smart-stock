@@ -1435,8 +1435,8 @@
     reader.onload = function (e) {
       var img = new Image();
       img.onload = function () {
-        // Resize ให้ไม่เกิน 1200px (ลดขนาดไฟล์ก่อนส่ง)
-        var maxW = 1200;
+        // Resize ให้ไม่เกิน 400px (ลดขนาดไฟล์ให้เล็กพอส่งผ่าน API ได้)
+        var maxW = 400;
         var scale = Math.min(1, maxW / img.width);
         var w = Math.round(img.width * scale);
         var h = Math.round(img.height * scale);
@@ -1463,7 +1463,7 @@
         ctx.fillText(currentTeam + '  |  ' + ts, Math.round(w * 0.02), h - Math.round(barH * 0.22));
 
         // เก็บ base64 ไว้ส่ง
-        ciPhotoBase64 = canvas.toDataURL('image/jpeg', 0.82).split(',')[1];
+        ciPhotoBase64 = canvas.toDataURL('image/jpeg', 0.70).split(',')[1];
         document.getElementById('ciPhotoPreview').style.display = 'block';
       };
       img.src = e.target.result;
