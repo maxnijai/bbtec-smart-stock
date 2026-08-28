@@ -1557,7 +1557,7 @@
 
         // ---- Canvas ขนาดเล็ก 100px สำหรับส่ง API (ขนาดเล็ก ~3KB) ----
         var tinyCanvas = document.createElement('canvas');
-        var tinyW = 150; // เพิ่มจาก 100px เพื่อคุณภาพรูปใน Drive ที่ดีขึ้น
+        var tinyW = 120; // balance: คุณภาพดีกว่า 100px แต่ยังอยู่ใน URL limit
         var tinyScale = Math.min(1, tinyW / img.width);
         tinyCanvas.width = Math.round(img.width * tinyScale);
         tinyCanvas.height = Math.round(img.height * tinyScale);
@@ -1565,7 +1565,7 @@
         tinyCtx.drawImage(img, 0, 0, tinyCanvas.width, tinyCanvas.height);
 
         // เก็บ base64 ขนาดเล็กไว้ส่ง API — Gemini นับคนที่ 100px ได้ปกติ
-        ciPhotoBase64 = tinyCanvas.toDataURL('image/jpeg', 0.78).split(',')[1];
+        ciPhotoBase64 = tinyCanvas.toDataURL('image/jpeg', 0.65).split(',')[1];
         document.getElementById('ciPhotoPreview').style.display = 'block';
       };
       img.src = e.target.result;
