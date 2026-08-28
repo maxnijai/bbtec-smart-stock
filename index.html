@@ -430,12 +430,17 @@
 
         <div class="field" style="margin-top:12px;">
           <label>จำนวนผู้ปฏิบัติงาน <span class="req">*</span></label>
-          <input id="ciCount" type="number" min="1" max="99" placeholder="กรอกจำนวนคน">
+          <input id="ciCount" type="number" min="1" max="99" placeholder="กรอกจำนวนคน" oninput="checkContractWarning(this.value)">
         </div>
 
         <div class="field" id="ciGpsField" style="margin-top:8px;">
           <label style="font-size:12px;color:var(--muted);">📍 พิกัด GPS (อัตโนมัติ)</label>
           <input id="ciGpsDisplay" readonly style="background:var(--sky-pale);font-size:12px;color:var(--muted);" placeholder="กำลังรับพิกัด...">
+        </div>
+        <div id="ciContractWarn" style="display:none;background:#fbeede;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12.5px;color:#7a4a00;">⚠️ <b>หมายเหตุ:</b> จำนวนผู้ปฏิบัติงานที่น้อยกว่าข้อกำหนดในสัญญาอาจส่งผลต่อเงื่อนไขการให้บริการและ SLA กรุณาระบุเหตุผลที่ชัดเจนในช่องหมายเหตุด้านล่าง</div>
+        <div class="field" style="margin-top:12px;">
+          <label>หมายเหตุ / เหตุผล <span style="color:var(--muted);font-weight:400;font-size:11px;">(กรณีจำนวนผู้ปฏิบัติงานไม่ครบตามสัญญา)</span></label>
+          <textarea id="ciRemark" rows="2" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;resize:none;" placeholder="ระบุเหตุผล เช่น ลาป่วย ลากิจ ฯลฯ"></textarea>
         </div>
         <div class="box box-amber" style="margin-bottom:12px;font-size:12px;">
           ℹ️ AI ตรวจนับอัตโนมัติ หากจำนวนไม่ตรงกัน รายการจะถูก Flag เพื่อให้ผู้ดูแลตรวจสอบ
@@ -1600,21 +1605,24 @@
       lat: gpsCoords ? gpsCoords.lat : '',
       lon: gpsCoords ? gpsCoords.lon : ''
     }).then(function (res) {
+      // ซ่อนฟอร์มและหยุด countdown ก่อนเลย ป้องกัน UI ค้าง
       clearInterval(ciCountdownTimer);
-      var resultEl = document.getElementById('ciResult');
-      var flagHtml = res.flag === 'OK'
-        ? '<div style="color:var(--green);font-size:18px;font-weight:bold;margin-bottom:6px;">✅ รายงานตัวสำเร็จ</div>'
-        : '<div style="color:var(--red);font-size:18px;font-weight:bold;margin-bottom:6px;">⚠️ รายงานตัวสำเร็จ แต่ถูก Flag</div>';
-      resultEl.innerHTML =
-        '<div class="card">' + flagHtml +
-        '<div class="item-meta">AI นับได้ <b>' + res.aiCount + ' คน</b> &nbsp;|&nbsp; คุณแจ้ง <b>' + res.reportedCount + ' คน</b></div>' +
-        '<div class="item-meta" style="margin-top:4px;">' + escapeHtml(res.note) + '</div>' +
-        (res.photoUrl ? '<a href="' + escapeHtml(res.photoUrl) + '" target="_blank" style="font-size:12px;color:var(--navy);font-weight:600;margin-top:6px;display:block;">📷 ดูรูปใน Google Drive</a>' : '') +
-        '</div>';
-      resultEl.style.display = 'block';
       document.getElementById('checkinForm').style.display = 'none';
-      renderTodayStatus({ submitted: true, flag: res.flag, note: res.note, reportedCount: res.reportedCount, aiCount: res.aiCount, photoUrl: res.photoUrl });
+      btn.textContent = 'รายงานตัวสำเร็จ';
       ciPhotoBase64 = null;
+      gpsCoords = null;
+      try {
+        var flag = res.flag || 'OK';
+        var statusEl = document.getElementById('checkinTodayStatus');
+        var color = flag === 'OK' ? 'var(--green)' : 'var(--red)';
+        var icon = flag === 'OK' ? '✅' : '⚠️';
+        statusEl.innerHTML =
+          '<div style="font-size:15px;font-weight:bold;color:' + color + ';margin-bottom:6px;">' + icon + ' รายงานตัวสำเร็จ' + (flag !== 'OK' ? ' (Flag)' : '') + '</div>' +
+          '<div class="item-meta">AI นับ <b>' + (res.aiCount||0) + ' คน</b> · แจ้ง <b>' + (res.reportedCount||0) + ' คน</b></div>' +
+          '<div class="item-meta" style="margin-top:4px;">' + escapeHtml(res.note||'') + '</div>' +
+          (res.photoUrl ? '<a href="' + escapeHtml(res.photoUrl) + '" target="_blank" style="font-size:12px;color:var(--navy);font-weight:600;margin-top:6px;display:block;">📷 ดูรูปใน Drive</a>' : '');
+        document.getElementById('ciResult').style.display = 'none';
+      } catch(e) { /* UI update error - data already saved */ }
       loadCiHistory();
     }).catch(function (err) {
       clearInterval(ciCountdownTimer);
@@ -1622,6 +1630,20 @@
       btn.disabled = false;
       btn.textContent = 'ยืนยันรายงานตัว';
     });
+  }
+
+  function checkContractWarning(val) {
+    var warn = document.getElementById('ciContractWarn');
+    var rem = document.getElementById('ciRemark');
+    if (!warn) return;
+    var n = Number(val);
+    if (n > 0 && n <= 2) {
+      warn.style.display = 'block';
+      if (rem) rem.required = true;
+    } else {
+      warn.style.display = 'none';
+      if (rem) rem.required = false;
+    }
   }
 
   function requestCiGPS() {
@@ -1641,7 +1663,10 @@
   }
 
   function loadCiHistory() {
-    callApi('getAttendanceHistory', { teamId: currentTeam, limit: 30 }).then(renderCiHistory).catch(showError);
+    callApi('getAttendanceHistory', { teamId: currentTeam, limit: 30 }).then(renderCiHistory).catch(function () {
+      var el = document.getElementById('ciHistoryList');
+      if (el) el.innerHTML = '<div class="empty">ยังไม่มีประวัติ</div>';
+    });
   }
 
   function renderCiHistory(list) {
@@ -1655,6 +1680,7 @@
         '<div class="item-row"><div><b>' + escapeHtml(r.date) + '</b></div>' + flagBadge + '</div>' +
         '<div class="item-meta" style="margin-top:4px;">แจ้ง <b>' + r.reportedCount + ' คน</b> · AI นับ <b>' + r.aiCount + ' คน</b></div>' +
         '<div class="item-meta">' + escapeHtml(r.note) + '</div>' +
+        (r.remark ? '<div class="item-meta" style="color:#7a4a00;">📝 ' + escapeHtml(r.remark) + '</div>' : '') +
         (r.lat ? '<div class="item-meta">📍 ' + escapeHtml(r.lat) + ', ' + escapeHtml(r.lon) + '</div>' : '') +
         '<div class="item-meta">' + escapeHtml(r.timestamp) + ' · โดย ' + escapeHtml(r.by) + '</div>' +
         (r.photoUrl ? '<a href="' + escapeHtml(r.photoUrl) + '" target="_blank" style="font-size:11px;color:var(--navy);">📷 ดูรูป Drive</a>' : '') +
