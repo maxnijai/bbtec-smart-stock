@@ -1603,27 +1603,53 @@
       date: date,
       by: currentWho,
       lat: gpsCoords ? gpsCoords.lat : '',
-      lon: gpsCoords ? gpsCoords.lon : ''
+      lon: gpsCoords ? gpsCoords.lon : '',
+      remark: (document.getElementById('ciRemark') ? document.getElementById('ciRemark').value.trim() : '')
     }).then(function (res) {
-      // ซ่อนฟอร์มและหยุด countdown ก่อนเลย ป้องกัน UI ค้าง
       clearInterval(ciCountdownTimer);
       document.getElementById('checkinForm').style.display = 'none';
-      btn.textContent = 'รายงานตัวสำเร็จ';
+      btn.textContent = 'รายงานตัวสำเร็จ ✅';
+
+      // แสดงผลสำเร็จทันที
+      var flag = res.flag || 'OK';
+      var color = flag === 'OK' ? 'var(--green)' : 'var(--red)';
+      var icon = flag === 'OK' ? '✅' : '⚠️';
+      var statusEl = document.getElementById('checkinTodayStatus');
+      statusEl.innerHTML =
+        '<div style="font-size:15px;font-weight:bold;color:' + color + ';margin-bottom:6px;">' + icon + ' รายงานตัวสำเร็จ' + (flag !== 'OK' ? ' (Flag)' : '') + '</div>' +
+        '<div class="item-meta">AI นับ <b>' + (res.aiCount||0) + ' คน</b> · แจ้ง <b>' + (res.reportedCount||0) + ' คน</b></div>' +
+        '<div class="item-meta" style="margin-top:4px;">' + escapeHtml(res.note||'') + '</div>' +
+        '<div id="ciDriveStatus" class="item-meta" style="margin-top:4px;color:var(--muted);">🔄 กำลังอัปโหลดรูปไป Drive...</div>';
+      document.getElementById('ciResult').style.display = 'none';
+
+      // เก็บ base64 ไว้ใช้ใน step 2
+      var savedPhoto = ciPhotoBase64;
+      var savedDate = date;
       ciPhotoBase64 = null;
       gpsCoords = null;
-      try {
-        var flag = res.flag || 'OK';
-        var statusEl = document.getElementById('checkinTodayStatus');
-        var color = flag === 'OK' ? 'var(--green)' : 'var(--red)';
-        var icon = flag === 'OK' ? '✅' : '⚠️';
-        statusEl.innerHTML =
-          '<div style="font-size:15px;font-weight:bold;color:' + color + ';margin-bottom:6px;">' + icon + ' รายงานตัวสำเร็จ' + (flag !== 'OK' ? ' (Flag)' : '') + '</div>' +
-          '<div class="item-meta">AI นับ <b>' + (res.aiCount||0) + ' คน</b> · แจ้ง <b>' + (res.reportedCount||0) + ' คน</b></div>' +
-          '<div class="item-meta" style="margin-top:4px;">' + escapeHtml(res.note||'') + '</div>' +
-          (res.photoUrl ? '<a href="' + escapeHtml(res.photoUrl) + '" target="_blank" style="font-size:12px;color:var(--navy);font-weight:600;margin-top:6px;display:block;">📷 ดูรูปใน Drive</a>' : '');
-        document.getElementById('ciResult').style.display = 'none';
-      } catch(e) { /* UI update error - data already saved */ }
+      var remEl = document.getElementById('ciRemark');
+      if (remEl) remEl.value = '';
       loadCiHistory();
+
+      // Step 2: อัปโหลดรูปไป Drive ใน background — ผู้ใช้เห็นผลสำเร็จแล้ว
+      callApi('uploadCheckInPhoto', {
+        teamId: currentTeam,
+        date: savedDate,
+        photoBase64: savedPhoto
+      }).then(function (r) {
+        var driveEl = document.getElementById('ciDriveStatus');
+        if (driveEl) {
+          if (r && r.photoUrl) {
+            driveEl.innerHTML = '<a href="' + escapeHtml(r.photoUrl) + '" target="_blank" style="color:var(--navy);font-weight:600;">📷 ดูรูปใน Google Drive</a>';
+          } else {
+            driveEl.textContent = '';
+          }
+        }
+      }).catch(function () {
+        var driveEl = document.getElementById('ciDriveStatus');
+        if (driveEl) driveEl.textContent = '';
+      });
+
     }).catch(function (err) {
       clearInterval(ciCountdownTimer);
       showError(err);
