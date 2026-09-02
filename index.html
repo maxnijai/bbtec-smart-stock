@@ -1759,6 +1759,15 @@
       retryGeminiPoll_();
     }, 8000); // poll ทุก 8 วินาที
   }
+  // มือถือ (โดยเฉพาะ iOS Safari) มักหยุด/หน่วง setInterval เมื่อแท็บถูกซ่อนหรือจอล็อก
+  // ทำให้ polling ค้างจนกว่าจะสลับหน้าไปมาเอง — ฟังอีเวนต์นี้เพื่อเช็คสถานะทันทีที่กลับมาเห็นหน้าจอ
+  // แทนที่จะรอรอบ setInterval ถัดไป (ซึ่งอาจไม่มาเลยถ้า timer ถูกเบราว์เซอร์หยุดไว้)
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && ciPollTimer) retryGeminiPoll_();
+  });
+  window.addEventListener('focus', function () {
+    if (ciPollTimer) retryGeminiPoll_();
+  });
   function retryGeminiPoll_() {
     // ไม่ต้องเช็ค ciPendingPhoto อีกต่อไป — retryCheckIn ฝั่ง backend แค่อ่านสถานะจากชีต
     // ไม่ได้ใช้รูปแล้ว (Gemini รันอยู่เบื้องหลังผ่าน trigger) จึง poll ได้แม้เพิ่งเปิดหน้าใหม่
