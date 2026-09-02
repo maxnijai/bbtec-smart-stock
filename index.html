@@ -1553,8 +1553,14 @@
         '<div class="item-meta">AI กำลังนับคนในรูป กรุณารอสักครู่...</div>' +
         '<div class="item-meta" style="margin-top:6px;"><button class="btn btn-outline" onclick="manualRetryGemini()" style="width:auto;padding:8px 14px;">🔄 ตรวจสอบสถานะ</button></div>';
       formEl.style.display = 'none';
+      // เริ่ม polling อัตโนมัติเสมอเมื่อสถานะยัง PENDING_AI — ไม่ว่าจะมาจากการกด "ยืนยัน"
+      // ครั้งแรก หรือมาจากการเปิดหน้า/กด "กลับ" แล้วเข้าใหม่ (ciPendingPhoto อาจว่างในกรณีหลัง
+      // แต่ retryCheckIn ไม่ต้องใช้รูปแล้ว จึง poll ได้ปกติ)
+      startPendingPoll_();
       return;
     }
+    // ไม่ pending แล้ว — เคลียร์ polling timer เดิม (ถ้ามี) กันชนกับสถานะที่เพิ่งอัปเดต
+    if (ciPollTimer) { clearInterval(ciPollTimer); ciPollTimer = null; }
     if (status.submitted) {
       var flagHtml = status.flag === 'OK'
         ? '<span style="color:var(--green);font-weight:bold;">✅ ผ่าน</span>'
@@ -1754,8 +1760,9 @@
     }, 8000); // poll ทุก 8 วินาที
   }
   function retryGeminiPoll_() {
-    if (!ciPendingPhoto) return;
-    callApi('retryCheckIn', { teamId: currentTeam, photoBase64: ciPendingPhoto }).then(function (res) {
+    // ไม่ต้องเช็ค ciPendingPhoto อีกต่อไป — retryCheckIn ฝั่ง backend แค่อ่านสถานะจากชีต
+    // ไม่ได้ใช้รูปแล้ว (Gemini รันอยู่เบื้องหลังผ่าน trigger) จึง poll ได้แม้เพิ่งเปิดหน้าใหม่
+    callApi('retryCheckIn', { teamId: currentTeam }).then(function (res) {
       if (res.flag === 'PENDING_AI') return; // ยังรออยู่ — รอ poll รอบหน้า
       // สำเร็จแล้ว
       clearInterval(ciPollTimer); ciPollTimer = null;
@@ -1772,14 +1779,7 @@
     }).catch(function () { /* silent — retry ครั้งหน้า */ });
   }
   function manualRetryGemini() {
-    if (!ciPendingPhoto) {
-      // ไม่มีรูปใน memory — แค่ refresh สถานะ
-      callApi('getTodayAttendance', { teamId: currentTeam }).then(function (res) {
-        if (res.pending) { renderTodayStatus(res); }
-        else if (res.submitted) { renderTodayStatus(res); loadCiHistory(); }
-      }).catch(showError);
-      return;
-    }
+    // retryCheckIn ไม่ต้องใช้รูปแล้ว เรียกตรวจสอบสถานะได้เลยไม่ว่า ciPendingPhoto จะว่างหรือไม่
     retryGeminiPoll_();
   }
 
