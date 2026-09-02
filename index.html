@@ -1651,7 +1651,7 @@
       ciSetProgress(2, 3, 'กำลังอัปโหลดรูปไป Google Drive...');
 
       // === STEP 2: uploadCheckInPhoto (Drive upload) ===
-      return callApi('uploadCheckInPhoto', {
+      return callApiPost('uploadCheckInPhoto', {
         teamId: currentTeam,
         date: savedDate,
         photoBase64: savedPhoto
