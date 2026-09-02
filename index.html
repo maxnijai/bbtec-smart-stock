@@ -1498,6 +1498,8 @@
   var gpsCoords = null;         // {lat, lon} จาก Geolocation
   var ciCountdownTimer = null;
   var ciSubmitting = false;     // ป้องกัน double submit
+  var ciPollTimer = null;         // polling timer สำหรับ PENDING_AI
+  var ciPendingPhoto = null;       // เก็บ base64 ไว้ใช้ตอน retryCheckIn
 
   function ciBeforeUnload(e) {
     e.preventDefault();
@@ -1544,6 +1546,15 @@
   function renderTodayStatus(status) {
     var el = document.getElementById('checkinTodayStatus');
     var formEl = document.getElementById('checkinForm');
+    if (status.pending) {
+      // PENDING_AI — แสดง polling UI
+      el.innerHTML =
+        '<div style="color:var(--navy);font-weight:bold;margin-bottom:6px;">⏳ ระบบกำลังประมวลผล</div>' +
+        '<div class="item-meta">AI กำลังนับคนในรูป กรุณารอสักครู่...</div>' +
+        '<div class="item-meta" style="margin-top:6px;"><button class="btn btn-outline" onclick="manualRetryGemini()" style="width:auto;padding:8px 14px;">🔄 ตรวจสอบสถานะ</button></div>';
+      formEl.style.display = 'none';
+      return;
+    }
     if (status.submitted) {
       var flagHtml = status.flag === 'OK'
         ? '<span style="color:var(--green);font-weight:bold;">✅ ผ่าน</span>'
@@ -1645,7 +1656,7 @@
     btn.textContent = '⟳ กำลังดำเนินการ...';
     var progressBox = document.getElementById('ciProgressBox');
     if (progressBox) progressBox.style.display = 'block';
-    ciSetProgress(1, 2, 'AI กำลังตรวจสอบภาพ + อัปโหลดรูปไป Drive...');
+    ciSetProgress(1, 3, 'AI กำลังตรวจสอบภาพและนับจำนวนคน...');
 
     // === SINGLE STEP: Gemini + Drive + Sheets ===
     callApi('checkIn', {
@@ -1658,15 +1669,26 @@
       lon: gpsCoords ? gpsCoords.lon : '',
       remark: remark
     }).then(function (res) {
-      ciSetProgress(2, 2, 'บันทึกข้อมูลสำเร็จ...');
+      ciSetProgress(2, 3, 'กำลังอัปโหลดรูปไป Drive...'); ciSetProgress(3, 3, 'บันทึกข้อมูลสำเร็จ...');
       ciSubmitting = false;
       ciLockUI(false);
       if (progressBox) progressBox.style.display = 'none';
+
+      // PENDING_AI — Gemini lock ยุ่ง → เริ่ม polling
+      if (res && res.flag === 'PENDING_AI') {
+        btn.textContent = 'ยืนยันรายงานตัว';
+        btn.disabled = false;
+        ciPendingPhoto = savedPhoto; // เก็บไว้ใช้ใน retryCheckIn
+        renderTodayStatus({ pending: true });
+        startPendingPoll_();
+        return;
+      }
+
       document.getElementById('checkinForm').style.display = 'none';
       btn.textContent = '✓ บันทึกสำเร็จ';
 
       // clear form
-      ciPhotoBase64 = null; ciDriveBase64 = null; gpsCoords = null;
+      ciPhotoBase64 = null; ciDriveBase64 = null; gpsCoords = null; ciPendingPhoto = null;
       var remEl = document.getElementById('ciRemark'); if (remEl) remEl.value = '';
       var countEl = document.getElementById('ciCount'); if (countEl) countEl.value = '';
       var previewEl = document.getElementById('ciPhotoPreview'); if (previewEl) previewEl.style.display = 'none';
@@ -1714,7 +1736,54 @@
     });
   }
 
-    function checkContractWarning(val) {
+    // ── Polling สำหรับ PENDING_AI ──────────────────────────────────────────
+  function startPendingPoll_() {
+    if (ciPollTimer) clearInterval(ciPollTimer);
+    var attempts = 0;
+    var MAX_ATTEMPTS = 24; // รอสูงสุด 24 × 8s = 3.2 นาที
+    ciPollTimer = setInterval(function () {
+      attempts++;
+      if (attempts > MAX_ATTEMPTS) {
+        clearInterval(ciPollTimer); ciPollTimer = null;
+        var el = document.getElementById('checkinTodayStatus');
+        el.innerHTML = '<div style="color:var(--muted);">⌛ ใช้เวลานานเกินคาด กรุณากด "ตรวจสอบสถานะ" อีกครั้ง</div>' +
+          '<div style="margin-top:8px;"><button class="btn btn-outline" onclick="manualRetryGemini()" style="width:auto;padding:8px 14px;">🔄 ตรวจสอบสถานะ</button></div>';
+        return;
+      }
+      retryGeminiPoll_();
+    }, 8000); // poll ทุก 8 วินาที
+  }
+  function retryGeminiPoll_() {
+    if (!ciPendingPhoto) return;
+    callApi('retryCheckIn', { teamId: currentTeam, photoBase64: ciPendingPhoto }).then(function (res) {
+      if (res.flag === 'PENDING_AI') return; // ยังรออยู่ — รอ poll รอบหน้า
+      // สำเร็จแล้ว
+      clearInterval(ciPollTimer); ciPollTimer = null;
+      ciPendingPhoto = null;
+      loadCiHistory();
+      var flag = res.flag || 'OK';
+      var color = flag === 'OK' ? 'var(--green)' : 'var(--red)';
+      var icon = flag === 'OK' ? '✅' : '⚠️';
+      var photoLine = res.photoUrl ? '<a href="' + escapeHtml(res.photoUrl) + '" target="_blank" style="font-size:12px;color:var(--navy);font-weight:600;display:block;margin-top:4px;">📷 ดูรูปใน Google Drive</a>' : '';
+      document.getElementById('checkinTodayStatus').innerHTML =
+        '<div style="font-size:15px;font-weight:bold;color:' + color + ';margin-bottom:6px;">' + icon + ' รายงานตัวสำเร็จ' + (flag !== 'OK' ? ' (Flag)' : '') + '</div>' +
+        '<div class="item-meta">AI นับ <b>' + (res.aiCount||0) + ' คน</b> · แจ้ง <b>' + (res.reportedCount||0) + ' คน</b></div>' +
+        '<div class="item-meta" style="margin-top:4px;">' + escapeHtml(res.note||'') + '</div>' + photoLine;
+    }).catch(function () { /* silent — retry ครั้งหน้า */ });
+  }
+  function manualRetryGemini() {
+    if (!ciPendingPhoto) {
+      // ไม่มีรูปใน memory — แค่ refresh สถานะ
+      callApi('getTodayAttendance', { teamId: currentTeam }).then(function (res) {
+        if (res.pending) { renderTodayStatus(res); }
+        else if (res.submitted) { renderTodayStatus(res); loadCiHistory(); }
+      }).catch(showError);
+      return;
+    }
+    retryGeminiPoll_();
+  }
+
+  function checkContractWarning(val) {
     var warn = document.getElementById('ciContractWarn');
     var rem = document.getElementById('ciRemark');
     if (!warn) return;
