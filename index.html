@@ -1627,7 +1627,6 @@
   }
 
   function submitCheckIn() {
-    // ป้องกัน double submit
     if (ciSubmitting) return;
     if (!ciPhotoBase64) { showToast('กรุณาถ่ายรูปก่อน'); return; }
     var date = document.getElementById('ciDate').value;
@@ -1636,9 +1635,7 @@
     if (!count || count < 1) { showToast('กรุณากรอกจำนวนคน'); return; }
     var remark = document.getElementById('ciRemark') ? document.getElementById('ciRemark').value.trim() : '';
 
-    // เก็บข้อมูลไว้ก่อน clear (ป้องกัน race)
     var savedPhoto = ciPhotoBase64;
-    var savedDrivePhoto = ciDriveBase64;
     var savedDate = date;
 
     // === LOCK UI ===
@@ -1648,11 +1645,9 @@
     btn.textContent = '⟳ กำลังดำเนินการ...';
     var progressBox = document.getElementById('ciProgressBox');
     if (progressBox) progressBox.style.display = 'block';
+    ciSetProgress(1, 2, 'AI กำลังตรวจสอบภาพ + อัปโหลดรูปไป Drive...');
 
-    // Step 1 label
-    ciSetProgress(1, 3, 'AI กำลังตรวจสอบภาพและนับจำนวนคน...');
-
-    // === STEP 1: checkIn (AI analysis + save to Sheets) ===
+    // === SINGLE STEP: Gemini + Drive + Sheets ===
     callApi('checkIn', {
       teamId: currentTeam,
       photoBase64: savedPhoto,
@@ -1663,87 +1658,63 @@
       lon: gpsCoords ? gpsCoords.lon : '',
       remark: remark
     }).then(function (res) {
-      // Step 1 สำเร็จ — บันทึก Sheets แล้ว
-      ciSetProgress(2, 3, 'กำลังอัปโหลดรูปไป Google Drive...');
-
-      // === STEP 2: uploadCheckInPhoto (Drive upload) ===
-      return callApi('uploadCheckInPhoto', {
-        teamId: currentTeam,
-        date: savedDate,
-        photoBase64: savedDrivePhoto
-      }).then(function (driveRes) {
-        // Step 2 สำเร็จ — รูปอยู่ใน Drive แล้ว
-        ciSetProgress(3, 3, 'ตรวจสอบและแสดงผลสำเร็จ...');
-        return { checkInRes: res, driveRes: driveRes };
-      }).catch(function () {
-        // Drive upload ล้มเหลว — แต่ข้อมูลหลักบันทึกแล้ว ไม่ถือว่า error หลัก
-        ciSetProgress(3, 3, 'ตรวจสอบและแสดงผลสำเร็จ...');
-        return { checkInRes: res, driveRes: null };
-      });
-
-    }).then(function (combined) {
-      var res = combined.checkInRes;
-      var driveRes = combined.driveRes;
-
-      // === UNLOCK UI + แสดงผลสำเร็จ ===
+      ciSetProgress(2, 2, 'บันทึกข้อมูลสำเร็จ...');
       ciSubmitting = false;
       ciLockUI(false);
-      clearInterval(ciCountdownTimer);
       if (progressBox) progressBox.style.display = 'none';
       document.getElementById('checkinForm').style.display = 'none';
       btn.textContent = '✓ บันทึกสำเร็จ';
 
       // clear form
-      ciPhotoBase64 = null;
-      ciDriveBase64 = null;
-      gpsCoords = null;
-      var remEl = document.getElementById('ciRemark');
-      if (remEl) remEl.value = '';
-      var countEl = document.getElementById('ciCount');
-      if (countEl) countEl.value = '';
-      var previewEl = document.getElementById('ciPhotoPreview');
-      if (previewEl) previewEl.style.display = 'none';
-      var warnEl = document.getElementById('ciContractWarn');
-      if (warnEl) warnEl.style.display = 'none';
+      ciPhotoBase64 = null; ciDriveBase64 = null; gpsCoords = null;
+      var remEl = document.getElementById('ciRemark'); if (remEl) remEl.value = '';
+      var countEl = document.getElementById('ciCount'); if (countEl) countEl.value = '';
+      var previewEl = document.getElementById('ciPhotoPreview'); if (previewEl) previewEl.style.display = 'none';
+      var warnEl = document.getElementById('ciContractWarn'); if (warnEl) warnEl.style.display = 'none';
 
-      // แสดงสถานะสำเร็จ
       var flag = res.flag || 'OK';
       var color = flag === 'OK' ? 'var(--green)' : 'var(--red)';
       var icon = flag === 'OK' ? '✅' : '⚠️';
-      var photoLine = (driveRes && driveRes.photoUrl)
-        ? '<a href="' + escapeHtml(driveRes.photoUrl) + '" target="_blank" style="font-size:12px;color:var(--navy);font-weight:600;display:block;margin-top:4px;">📷 ดูรูปใน Google Drive</a>'
-        : '<div class="item-meta" style="color:var(--muted);">รูปภาพถูกบันทึกแล้ว (ลิงก์ Drive ไม่พร้อมใช้งาน)</div>';
-      var statusEl = document.getElementById('checkinTodayStatus');
-      statusEl.innerHTML =
+      var photoLine = res.photoUrl
+        ? '<a href="' + escapeHtml(res.photoUrl) + '" target="_blank" style="font-size:12px;color:var(--navy);font-weight:600;display:block;margin-top:4px;">📷 ดูรูปใน Google Drive</a>'
+        : '';
+      document.getElementById('checkinTodayStatus').innerHTML =
         '<div style="font-size:15px;font-weight:bold;color:' + color + ';margin-bottom:6px;">' + icon + ' รายงานตัวสำเร็จ' + (flag !== 'OK' ? ' (Flag — รอแอดมินตรวจสอบ)' : '') + '</div>' +
         '<div class="item-meta">AI นับ <b>' + (res.aiCount||0) + ' คน</b> · แจ้ง <b>' + (res.reportedCount||0) + ' คน</b></div>' +
-        '<div class="item-meta" style="margin-top:4px;">' + escapeHtml(res.note||'') + '</div>' +
-        photoLine;
+        '<div class="item-meta" style="margin-top:4px;">' + escapeHtml(res.note||'') + '</div>' + photoLine;
       document.getElementById('ciResult').style.display = 'none';
       loadCiHistory();
 
     }).catch(function (err) {
-      // === ERROR — unlock UI ให้ user ลองใหม่ได้ ===
       ciSubmitting = false;
       ciLockUI(false);
-      clearInterval(ciCountdownTimer);
       if (progressBox) progressBox.style.display = 'none';
-      btn.textContent = '⚠ ลองอีกครั้ง';
-      btn.disabled = false;
       var errMsg = (err && err.message) ? err.message : String(err);
-      // แยก error stage ให้ user เข้าใจ
-      if (errMsg.indexOf('Drive') >= 0 || errMsg.indexOf('อัปโหลดรูป') >= 0) {
-        showError('❌ อัปโหลดรูปภาพไม่สำเร็จ: ' + errMsg);
+
+      // ถ้า network timeout แต่ข้อมูลอาจบันทึกแล้ว — แจ้ง user ให้ตรวจสอบในประวัติ
+      if (errMsg.indexOf('Failed to fetch') >= 0 || errMsg.indexOf('NetworkError') >= 0 || errMsg.indexOf('Load failed') >= 0) {
+        btn.textContent = 'ยืนยันรายงานตัว';
+        btn.disabled = false;
+        var statusEl = document.getElementById('checkinTodayStatus');
+        statusEl.innerHTML =
+          '<div style="color:var(--amber);font-weight:bold;margin-bottom:6px;">⏳ ระบบกำลังประมวลผล</div>' +
+          '<div class="item-meta">ข้อมูลอาจถูกบันทึกแล้ว กรุณารอ 30 วินาที แล้วกด <b>"← กลับ"</b> และเปิดหน้ารายงานตัวใหม่เพื่อตรวจสอบในประวัติ</div>' +
+          '<div class="item-meta" style="margin-top:6px;"><button class="btn btn-outline" onclick="loadCiHistory()" style="width:auto;padding:8px 14px;">🔄 ตรวจสอบประวัติ</button></div>';
+        loadCiHistory();
       } else if (errMsg.indexOf('รายงานตัวสำหรับวันที่') >= 0) {
         showError('⚠️ ' + errMsg + ' — ตรวจสอบในประวัติได้เลย ไม่ต้องส่งซ้ำ');
         btn.textContent = 'ยืนยันรายงานตัว';
+        btn.disabled = false;
+        loadCiHistory();
       } else {
         showError('❌ ' + errMsg);
+        btn.textContent = 'ยืนยันรายงานตัว';
+        btn.disabled = false;
       }
     });
   }
 
-  function checkContractWarning(val) {
+    function checkContractWarning(val) {
     var warn = document.getElementById('ciContractWarn');
     var rem = document.getElementById('ciRemark');
     if (!warn) return;
