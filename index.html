@@ -1493,7 +1493,8 @@
      รายงานตัวก่อนทำงาน — Check-in
      ============================================================ */
 
-  var ciPhotoBase64 = null; // base64 ขนาดเล็กสำหรับส่ง API
+  var ciPhotoBase64 = null; // 120px สำหรับ Gemini API
+  var ciDriveBase64 = null; // 50px สำหรับ Drive upload (เล็กพอส่งผ่าน GET)
   var gpsCoords = null;         // {lat, lon} จาก Geolocation
   var ciCountdownTimer = null;
   var ciSubmitting = false;     // ป้องกัน double submit
@@ -1593,17 +1594,31 @@
         var gpsText = gpsCoords ? ('  📍 ' + gpsCoords.lat + ', ' + gpsCoords.lon) : '';
         ctx.fillText(currentTeam + '  |  ' + ts + gpsText, Math.round(w * 0.02), h - Math.round(barH * 0.22));
 
-        // ---- Canvas ขนาดเล็ก 100px สำหรับส่ง API (ขนาดเล็ก ~3KB) ----
+        // ---- Canvas 1: 120px สำหรับ Gemini API (AI นับคน) ----
         var tinyCanvas = document.createElement('canvas');
-        var tinyW = 120; // balance: คุณภาพดีกว่า 100px แต่ยังอยู่ใน URL limit
+        var tinyW = 120;
         var tinyScale = Math.min(1, tinyW / img.width);
         tinyCanvas.width = Math.round(img.width * tinyScale);
         tinyCanvas.height = Math.round(img.height * tinyScale);
-        var tinyCtx = tinyCanvas.getContext('2d');
-        tinyCtx.drawImage(img, 0, 0, tinyCanvas.width, tinyCanvas.height);
-
-        // เก็บ base64 ขนาดเล็กไว้ส่ง API — Gemini นับคนที่ 100px ได้ปกติ
+        tinyCanvas.getContext('2d').drawImage(img, 0, 0, tinyCanvas.width, tinyCanvas.height);
         ciPhotoBase64 = tinyCanvas.toDataURL('image/jpeg', 0.65).split(',')[1];
+
+        // ---- Canvas 2: 50px สำหรับ Drive upload ผ่าน GET (~1.5KB พอดี) ----
+        var driveCanvas = document.createElement('canvas');
+        var driveW = 50;
+        var driveScale = Math.min(1, driveW / img.width);
+        driveCanvas.width = Math.round(img.width * driveScale);
+        driveCanvas.height = Math.round(img.height * driveScale);
+        var dctx = driveCanvas.getContext('2d');
+        dctx.drawImage(img, 0, 0, driveCanvas.width, driveCanvas.height);
+        var dBarH = Math.max(6, Math.round(driveCanvas.height * 0.07));
+        dctx.fillStyle = 'rgba(0,0,0,0.7)';
+        dctx.fillRect(0, driveCanvas.height - dBarH, driveCanvas.width, dBarH);
+        dctx.fillStyle = '#fff';
+        dctx.font = 'bold ' + Math.max(4, Math.round(dBarH * 0.6)) + 'px Arial';
+        dctx.fillText(currentTeam + ' ' + new Date().toLocaleDateString('th-TH'), 1, driveCanvas.height - 1);
+        ciDriveBase64 = driveCanvas.toDataURL('image/jpeg', 0.55).split(',')[1];
+
         document.getElementById('ciPhotoPreview').style.display = 'block';
       };
       img.src = e.target.result;
@@ -1623,6 +1638,7 @@
 
     // เก็บข้อมูลไว้ก่อน clear (ป้องกัน race)
     var savedPhoto = ciPhotoBase64;
+    var savedDrivePhoto = ciDriveBase64;
     var savedDate = date;
 
     // === LOCK UI ===
@@ -1651,10 +1667,10 @@
       ciSetProgress(2, 3, 'กำลังอัปโหลดรูปไป Google Drive...');
 
       // === STEP 2: uploadCheckInPhoto (Drive upload) ===
-      return callApiPost('uploadCheckInPhoto', {
+      return callApi('uploadCheckInPhoto', {
         teamId: currentTeam,
         date: savedDate,
-        photoBase64: savedPhoto
+        photoBase64: savedDrivePhoto
       }).then(function (driveRes) {
         // Step 2 สำเร็จ — รูปอยู่ใน Drive แล้ว
         ciSetProgress(3, 3, 'ตรวจสอบและแสดงผลสำเร็จ...');
@@ -1679,6 +1695,7 @@
 
       // clear form
       ciPhotoBase64 = null;
+      ciDriveBase64 = null;
       gpsCoords = null;
       var remEl = document.getElementById('ciRemark');
       if (remEl) remEl.value = '';
