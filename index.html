@@ -1498,8 +1498,10 @@
   var gpsCoords = null;         // {lat, lon} จาก Geolocation
   var ciCountdownTimer = null;
   var ciSubmitting = false;     // ป้องกัน double submit
-  var ciPollTimer = null;         // polling timer สำหรับ PENDING_AI
+  var ciPollTimer = null;         // polling timer สำหรับ PENDING_AI (ทุก 8s)
   var ciPendingPhoto = null;       // เก็บ base64 ไว้ใช้ตอน retryCheckIn
+  var ciElapsedTimer = null;       // ticking timer อัปเดตทุก 1s แสดง "รอมาแล้วกี่วินาที"
+  var ciSubmittedAt = null;        // epoch ms จากคอลัมน์ Timestamp ฝั่ง server — ใช้คำนวณเวลารอจริง
 
   function ciBeforeUnload(e) {
     e.preventDefault();
@@ -1543,24 +1545,62 @@
     loadCiHistory();
   }
 
+  // ประมาณการเวลารอสูงสุด: trigger เบื้องหลังรันทุก 60s + เผื่อเวลา Gemini ประมวลผล/retry (~5-10s)
+  // นี่คือ "ค่าประมาณ" ไม่ใช่ตัวเลขจริงที่รับประกันได้ 100% — เวลาจริงขึ้นกับจังหวะ trigger ของ
+  // Google (มี jitter) และความเร็ว Gemini API ในแต่ละครั้ง ซึ่งควบคุมจากฝั่งเราไม่ได้ทั้งหมด
+  var CI_ESTIMATED_WAIT_SEC = 65;
+
+  function ciFormatElapsed_(sec) {
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  function stopElapsedTimer_() {
+    if (ciElapsedTimer) { clearInterval(ciElapsedTimer); ciElapsedTimer = null; }
+  }
+  function startElapsedTimer_(submittedAt) {
+    stopElapsedTimer_();
+    ciSubmittedAt = submittedAt || Date.now(); // fallback เผื่อ backend เก่ายังไม่ส่ง submittedAt มา
+    var tick = function () {
+      var el = document.getElementById('ciElapsedDisplay');
+      var labelEl = document.getElementById('ciElapsedLabel');
+      if (!el) { stopElapsedTimer_(); return; } // UI ถูกเปลี่ยนไปแล้ว (เช่นเสร็จแล้ว) เลิก tick
+      var elapsedSec = Math.max(0, Math.floor((Date.now() - ciSubmittedAt) / 1000));
+      var remain = CI_ESTIMATED_WAIT_SEC - elapsedSec;
+      if (remain > 0) {
+        // ยังอยู่ในเวลาที่ประมาณไว้ — นับถอยหลัง
+        if (labelEl) labelEl.textContent = 'คาดว่าจะเสร็จภายใน';
+        el.textContent = ciFormatElapsed_(remain);
+      } else {
+        // เกินเวลาที่ประมาณไว้แล้วแต่ยังไม่เสร็จ — สลับมานับเวลาที่รอจริงต่อ กันค้างที่ 00:00
+        if (labelEl) labelEl.textContent = 'เกินเวลาที่คาด รอมาแล้ว';
+        el.textContent = ciFormatElapsed_(elapsedSec);
+      }
+    };
+    tick();
+    ciElapsedTimer = setInterval(tick, 1000);
+  }
+
   function renderTodayStatus(status) {
     var el = document.getElementById('checkinTodayStatus');
     var formEl = document.getElementById('checkinForm');
     if (status.pending) {
-      // PENDING_AI — แสดง polling UI
+      // PENDING_AI — แสดง polling UI พร้อมตัวนับถอยหลังโดยประมาณ (อิงเวลาจริงจาก server)
       el.innerHTML =
         '<div style="color:var(--navy);font-weight:bold;margin-bottom:6px;">⏳ ระบบกำลังประมวลผล</div>' +
-        '<div class="item-meta">AI กำลังนับคนในรูป กรุณารอสักครู่...</div>' +
+        '<div class="item-meta">AI กำลังนับคนในรูป <span id="ciElapsedLabel">คาดว่าจะเสร็จภายใน</span> <span id="ciElapsedDisplay" style="font-weight:600;">01:05</span></div>' +
         '<div class="item-meta" style="margin-top:6px;"><button class="btn btn-outline" onclick="manualRetryGemini()" style="width:auto;padding:8px 14px;">🔄 ตรวจสอบสถานะ</button></div>';
       formEl.style.display = 'none';
+      startElapsedTimer_(status.submittedAt);
       // เริ่ม polling อัตโนมัติเสมอเมื่อสถานะยัง PENDING_AI — ไม่ว่าจะมาจากการกด "ยืนยัน"
       // ครั้งแรก หรือมาจากการเปิดหน้า/กด "กลับ" แล้วเข้าใหม่ (ciPendingPhoto อาจว่างในกรณีหลัง
+
       // แต่ retryCheckIn ไม่ต้องใช้รูปแล้ว จึง poll ได้ปกติ)
       startPendingPoll_();
       return;
     }
-    // ไม่ pending แล้ว — เคลียร์ polling timer เดิม (ถ้ามี) กันชนกับสถานะที่เพิ่งอัปเดต
+    // ไม่ pending แล้ว — เคลียร์ polling/elapsed timer เดิม (ถ้ามี) กันชนกับสถานะที่เพิ่งอัปเดต
     if (ciPollTimer) { clearInterval(ciPollTimer); ciPollTimer = null; }
+    stopElapsedTimer_();
     if (status.submitted) {
       var flagHtml = status.flag === 'OK'
         ? '<span style="color:var(--green);font-weight:bold;">✅ ผ่าน</span>'
@@ -1685,7 +1725,7 @@
         btn.textContent = 'ยืนยันรายงานตัว';
         btn.disabled = false;
         ciPendingPhoto = savedPhoto; // เก็บไว้ใช้ใน retryCheckIn
-        renderTodayStatus({ pending: true });
+        renderTodayStatus({ pending: true, submittedAt: res.submittedAt });
         startPendingPoll_();
         return;
       }
@@ -1751,6 +1791,7 @@
       attempts++;
       if (attempts > MAX_ATTEMPTS) {
         clearInterval(ciPollTimer); ciPollTimer = null;
+        stopElapsedTimer_();
         var el = document.getElementById('checkinTodayStatus');
         el.innerHTML = '<div style="color:var(--muted);">⌛ ใช้เวลานานเกินคาด กรุณากด "ตรวจสอบสถานะ" อีกครั้ง</div>' +
           '<div style="margin-top:8px;"><button class="btn btn-outline" onclick="manualRetryGemini()" style="width:auto;padding:8px 14px;">🔄 ตรวจสอบสถานะ</button></div>';
@@ -1775,6 +1816,7 @@
       if (res.flag === 'PENDING_AI') return; // ยังรออยู่ — รอ poll รอบหน้า
       // สำเร็จแล้ว
       clearInterval(ciPollTimer); ciPollTimer = null;
+      stopElapsedTimer_();
       ciPendingPhoto = null;
       loadCiHistory();
       var flag = res.flag || 'OK';
