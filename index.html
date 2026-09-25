@@ -2193,6 +2193,7 @@
     document.getElementById('rsDPlan').textContent = t.plan;
     document.getElementById('rsDCause').textContent = t.cause;
     document.getElementById('rsDFix').textContent = t.fix;
+    document.getElementById('rsNavigateBtn').href = 'https://www.google.com/maps/dir/?api=1&destination=' + t.lat + ',' + t.lng + '&travelmode=driving';
 
     var chip = document.getElementById('rsDStatusChip');
     var info = document.getElementById('rsDSurveyedInfo');
