@@ -142,6 +142,9 @@
   .rs-photo-btn.has-photo{border-style:solid;border-color:var(--sky);color:var(--navy);background:var(--sky-pale);}
   .rs-photo-btn:disabled{opacity:.5;cursor:not-allowed;}
   @keyframes rsSpin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+  /* ล็อกไม่ให้หน้าเลื่อนตอนอยู่แท็บ Route Survey — กัน position:fixed ของแผนที่/แถบสรุป
+     เพี้ยนตำแหน่งตอนหน้าเลื่อน/เด้ง (โดยเฉพาะ iOS Safari ที่แถบ URL ย่อขยายเวลาเลื่อน) */
+  html.rs-locked, body.rs-locked{overflow:hidden;height:100%;overscroll-behavior:none;}
   .rs-assign-chip{width:34px;height:34px;border-radius:50%;border:2px solid transparent;color:#fff;
     font-weight:700;font-size:13px;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;}
   .rs-assign-chip.active{border-color:var(--ink);box-shadow:0 0 0 2px #fff inset;}
@@ -743,6 +746,7 @@
     callApi('getTeamIdList', {}).then(function (data) { teamList = data; }).catch(function () {});
   }
   function showHomeScreen() {
+    rsSetBodyLock(false);
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('homeScreen').style.display = 'block';
     document.getElementById('appScreen').style.display = 'none';
@@ -759,6 +763,7 @@
   }
   function goToModule(module) {
     showApp();
+    rsSetBodyLock(module === 'routesurvey');
     var allNavBtns = document.querySelectorAll('.nav-btn');
     allNavBtns.forEach(function(b) { b.style.display = ''; b.classList.remove('active'); });
     var allTabs = document.querySelectorAll('.tab-panel');
@@ -873,11 +878,16 @@
     document.getElementById('tab-' + name).classList.add('active');
     document.querySelectorAll('.nav-btn').forEach(function (b) { b.classList.remove('active'); });
     if (evt) evt.currentTarget.classList.add('active');
+    rsSetBodyLock(name === 'routesurvey');
     if (name === 'history') loadHistory();
     if (name === 'summary') loadSummary();
     if (name === 'count') loadTransfers();
     if (name === 'checkin') loadCheckinTab();
     if (name === 'routesurvey') loadRouteSurveyTab();
+  }
+  function rsSetBodyLock(on) {
+    document.documentElement.classList.toggle('rs-locked', on);
+    document.body.classList.toggle('rs-locked', on);
   }
   function refreshCountTab() {
     loadStock();
