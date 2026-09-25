@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Route Survey — มอคอัพ</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --navy-900:#0B1B2E;
+    --navy-800:#122740;
+    --blue-500:#2E6FF2;
+    --blue-050:#EAF1FE;
+    --amber-500:#F5A623;
+    --red-500:#E5484D;
+    --red-050:#FDECEC;
+    --paper:#F1F4F8;
+    --ink:#16202C;
+    --ink-soft:#4A5A6B;
+    --line:#D6DEE8;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;font-family:'IBM Plex Sans Thai',sans-serif;color:var(--ink);}
+  #map{position:absolute;inset:0;z-index:0;}
+
+  /* ---------- MOCKUP BANNER ---------- */
+  .mockup-banner{
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    background:var(--navy-900); color:#fff;
+    font-size:12.5px; text-align:center; padding:6px 10px;
+    letter-spacing:.01em;
+  }
+  .mockup-banner b{color:#FFD37A;}
+
+  /* ---------- TOP HEADER PILL ---------- */
+  .header-pill{
+    position:fixed; top:38px; left:16px; right:16px; z-index:40;
+    background:rgba(11,27,46,0.94); backdrop-filter:blur(6px);
+    color:#fff; border-radius:16px; padding:14px 18px;
+    display:flex; align-items:center; justify-content:space-between;
+    box-shadow:0 8px 24px rgba(0,0,0,0.25);
+  }
+  .header-pill h1{font-size:16px; margin:0; font-weight:700;}
+  .header-pill .sub{font-size:11.5px; color:#9CADC4; margin-top:2px;}
+  .counts{display:flex; gap:14px;}
+  .count-item{display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600;}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none;}
+  .dot.red{background:var(--red-500);}
+  .dot.blue{background:var(--blue-500);}
+
+  /* ---------- CUSTOM PIN ---------- */
+  .pin{width:30px;height:30px;position:relative;}
+  .pin svg{width:100%;height:100%;display:block;filter:drop-shadow(0 3px 4px rgba(0,0,0,.35));}
+  .pin.done svg .pin-body{fill:var(--blue-500);}
+  .pin.pending svg .pin-body{fill:var(--red-500);}
+
+  /* ---------- BOTTOM SHEET ---------- */
+  .sheet-backdrop{
+    position:fixed; inset:0; background:rgba(11,27,46,0.4);
+    z-index:60; opacity:0; pointer-events:none; transition:opacity .2s;
+  }
+  .sheet-backdrop.open{opacity:1; pointer-events:auto;}
+
+  .sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:61;
+    background:#fff; border-radius:20px 20px 0 0;
+    max-height:82vh; overflow-y:auto;
+    transform:translateY(100%); transition:transform .28s cubic-bezier(.32,.72,0,1);
+    box-shadow:0 -8px 30px rgba(0,0,0,0.2);
+  }
+  .sheet.open{transform:translateY(0);}
+  .sheet-handle{width:38px;height:4px;background:var(--line);border-radius:99px;margin:10px auto 4px;}
+  .sheet-inner{padding:6px 22px 26px;}
+
+  .status-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:600; padding:4px 11px; border-radius:99px;
+    margin-bottom:12px;
+  }
+  .status-chip.pending{background:var(--red-050); color:#C0262B;}
+  .status-chip.done{background:var(--blue-050); color:var(--blue-500);}
+
+  .ticket-id{font-size:12px; color:var(--ink-soft); font-weight:600; letter-spacing:.02em;}
+  .subject{font-size:16.5px; font-weight:700; margin:4px 0 14px; line-height:1.4;}
+
+  .field-row{display:flex; gap:10px; padding:10px 0; border-top:1px solid var(--line);}
+  .field-row .label{width:82px; flex:none; font-size:12.5px; color:var(--ink-soft); padding-top:1px;}
+  .field-row .value{font-size:13.5px; line-height:1.55;}
+
+  .btn-primary{
+    width:100%; margin-top:18px; padding:14px; border:none; border-radius:12px;
+    background:var(--navy-900); color:#fff; font-family:inherit;
+    font-size:15px; font-weight:600; cursor:pointer;
+  }
+  .btn-primary:active{background:var(--navy-800);}
+  .btn-primary.saved{background:var(--blue-500);}
+
+  /* ---------- SURVEY FORM (second sheet state) ---------- */
+  .form-group{margin-bottom:16px;}
+  .form-group label{display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:var(--ink);}
+  select, input[type=text], input[type=date], textarea{
+    width:100%; padding:11px 12px; border:1.5px solid var(--line); border-radius:10px;
+    font-family:inherit; font-size:14px; color:var(--ink); background:#fff;
+  }
+  select:focus, input:focus, textarea:focus{outline:none; border-color:var(--blue-500);}
+  textarea{resize:vertical; min-height:60px;}
+
+  .photo-btn{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; padding:16px; border:1.5px dashed var(--line); border-radius:10px;
+    background:var(--paper); color:var(--ink-soft); font-family:inherit; font-size:13.5px;
+    font-weight:600; cursor:pointer;
+  }
+  .photo-btn.has-photo{border-style:solid; border-color:var(--blue-500); color:var(--blue-500); background:var(--blue-050);}
+  .photo-btn:disabled{opacity:.5; cursor:not-allowed;}
+  .photo-btn svg{width:18px;height:18px;}
+  .photo-grid{display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-bottom:8px;}
+  .photo-thumb{position:relative; aspect-ratio:1; border-radius:8px; overflow:hidden; background:var(--paper);}
+  .photo-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  .photo-thumb .rm{
+    position:absolute; top:3px; right:3px; width:18px; height:18px; border-radius:50%;
+    background:rgba(11,27,46,0.85); color:#fff; border:none; font-size:12px; line-height:1;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;
+  }
+
+  .back-link{
+    display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft);
+    background:none; border:none; font-family:inherit; padding:4px 0; margin-bottom:6px; cursor:pointer;
+  }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--navy-900); color:#fff; padding:12px 20px; border-radius:12px;
+    font-size:13.5px; font-weight:600; z-index:80; opacity:0; transition:all .25s;
+    display:flex; align-items:center; gap:8px; pointer-events:none;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .toast svg{width:16px;height:16px;flex:none;}
+
+  .leaflet-container{font-family:'IBM Plex Sans Thai',sans-serif;}
+</style>
+</head>
+<body>
+
+<div class="mockup-banner">🔧 หน้านี้เชื่อม API จริงแล้ว — ใส่ <b>API_URL</b> ด้านล่างสุดของไฟล์ก่อนใช้งาน (ตัวเดียวกับ index.html หลัก)</div>
+
+<div id="map"></div>
+
+<div class="header-pill">
+  <div>
+    <h1>Route Survey</h1>
+    <div class="sub">NOR1 · เชียงใหม่ – ลำพูน</div>
+  </div>
+  <div class="counts">
+    <div class="count-item"><span class="dot red"></span><span id="countPending">–</span></div>
+    <div class="count-item"><span class="dot blue"></span><span id="countDone">–</span></div>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="backdrop"></div>
+
+<!-- DETAIL SHEET -->
+<div class="sheet" id="detailSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-inner">
+    <span class="ticket-id" id="dTicket"></span>
+    <span class="status-chip" id="dStatusChip"></span>
+    <div class="subject" id="dSubject"></div>
+
+    <div class="field-row"><div class="label">Plan</div><div class="value" id="dPlan"></div></div>
+    <div class="field-row"><div class="label">สาเหตุ 1</div><div class="value" id="dCause"></div></div>
+    <div class="field-row"><div class="label">วิธีแก้ไข</div><div class="value" id="dFix"></div></div>
+
+    <div id="dSurveyedInfo" style="display:none;">
+      <div class="field-row"><div class="label">ผลตรวจ</div><div class="value" id="dSurveyResult"></div></div>
+      <div class="field-row"><div class="label">ผู้ตรวจ</div><div class="value" id="dInspector"></div></div>
+    </div>
+
+    <button class="btn-primary" id="openFormBtn">บันทึกผลตรวจหน้างาน</button>
+  </div>
+</div>
+
+<!-- SURVEY FORM SHEET -->
+<div class="sheet" id="formSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-inner">
+    <button class="back-link" id="backBtn">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      กลับ
+    </button>
+    <div class="subject" id="fSubject" style="margin-bottom:18px;"></div>
+
+    <div class="form-group">
+      <label>ผลตรวจแนวสาย</label>
+      <select id="fLineResult">
+        <option value="">เลือก...</option>
+        <option>ขึงตึงอยู่บนแนวเสา</option>
+        <option>ตกหย่อน</option>
+        <option>มัดอยู่ที่โคนเสา</option>
+        <option>กองอยู่กับพื้น</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Status ผลตรวจแนวสาย</label>
+      <select id="fLineStatus">
+        <option value="">เลือก...</option>
+        <option>Pass</option>
+        <option>Not Pass</option>
+        <option>Ongoing</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>ผลตรวจหัวต่อ</label>
+      <select id="fJointResult">
+        <option value="">เลือก...</option>
+        <option>หัวขวดน้ำ</option>
+        <option>เก็บหัวเรียบร้อย</option>
+        <option>ไม่มีหัวต่อ</option>
+        <option>มีทั้งหัวขวดน้ำและหัวต่อปกติ</option>
+        <option>เก็บหัวต่อไม่เรียบร้อย</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Status ผลตรวจหัวต่อ</label>
+      <select id="fJointStatus">
+        <option value="">เลือก...</option>
+        <option>Pass</option>
+        <option>Not Pass</option>
+        <option>Ongoing</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>รูปผลการตรวจ <span id="photoCountLabel" style="font-weight:400;color:var(--ink-soft);">(0/5)</span></label>
+      <div class="photo-grid" id="photoGrid"></div>
+      <button type="button" class="photo-btn" id="photoBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span id="photoBtnLabel">ถ่ายรูปหน้างาน (เพิ่มได้สูงสุด 5 รูป)</span>
+      </button>
+      <input type="file" id="photoInput" accept="image/*" capture="environment" multiple style="display:none;">
+    </div>
+
+    <div class="form-group">
+      <label>Remark</label>
+      <textarea id="fRemark" placeholder="พิมพ์ข้อความเพิ่มเติม (ถ้ามี)"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>ผู้ตรวจ</label>
+      <input type="text" id="fInspector" placeholder="ชื่อผู้ตรวจ">
+    </div>
+
+    <div class="form-group">
+      <label>วันที่ตรวจ</label>
+      <input type="date" id="fDate">
+    </div>
+
+    <button class="btn-primary" id="saveBtn">บันทึกผลตรวจ</button>
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+/* ===== ตั้งค่า: วาง URL Apps Script Web App เดียวกับ index.html หลัก ===== */
+var API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+
+function callApi(action, params) {
+  var url = API_URL + (API_URL.indexOf('?') === -1 ? '?' : '&') +
+    'action=' + encodeURIComponent(action) +
+    '&params=' + encodeURIComponent(JSON.stringify(params || {})) +
+    '&_=' + Date.now();
+  return fetch(url, { cache: 'no-store' }).then(function (res) {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }).then(function (json) {
+    if (!json || !json.ok) throw new Error((json && json.error) || 'เกิดข้อผิดพลาด');
+    return json.data;
+  });
+}
+function callApiPost(action, params) {
+  return fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: action, params: params || {} }),
+    cache: 'no-store'
+  }).then(function (res) {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }).then(function (json) {
+    if (!json || !json.ok) throw new Error((json && json.error) || 'เกิดข้อผิดพลาด');
+    return json.data;
+  });
+}
+
+var currentTeamId = localStorage.getItem('currentTeamId') || '';
+var currentWho = localStorage.getItem('techName') || '';
+
+let tickets = [];
+
+const map = L.map('map', { zoomControl:false }).setView([18.70, 98.98], 11);
+// CARTO เพิ่งเปลี่ยนนโยบายเป็นต้องขอ API key แล้ว (ก.ย. 2026) กลับมาใช้ OSM มาตรฐาน
+// (ไม่มี key, โดเมนเดียวไม่มี {s}) — หมายเหตุ: ถ้าทดสอบด้วยการเปิดไฟล์ตรงๆ (file://)
+// อาจโดน OSM บล็อกได้ง่ายกว่าปกติเพราะไม่มี Origin/Referer ส่งไป พอ deploy ขึ้น
+// GitHub Pages จริง (มี https origin) ควรใช้งานได้ปกติ
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution:'&copy; OpenStreetMap contributors', maxZoom:19
+}).addTo(map);
+L.control.zoom({ position:'bottomright' }).addTo(map);
+
+const pinSvg = `<div class="pin-svg-wrap"><svg viewBox="0 0 30 38"><path class="pin-body" d="M15 0C6.7 0 0 6.7 0 15c0 10.5 15 23 15 23s15-12.5 15-23C30 6.7 23.3 0 15 0z"/><circle cx="15" cy="14" r="6" fill="#fff"/></svg></div>`;
+
+function makeIcon(done){
+  return L.divIcon({
+    className: 'pin ' + (done ? 'done' : 'pending'),
+    html: pinSvg,
+    iconSize:[30,38], iconAnchor:[15,38], popupAnchor:[0,-34]
+  });
+}
+
+let activeTicket = null;
+const markerByTicket = {};
+
+function renderCounts(){
+  const done = tickets.filter(t=>t.surveyed).length;
+  document.getElementById('countPending').textContent = (tickets.length-done) + ' รอตรวจ';
+  document.getElementById('countDone').textContent = done + ' ตรวจแล้ว';
+}
+
+function plotTickets(){
+  Object.values(markerByTicket).forEach(m => map.removeLayer(m));
+  for (const k in markerByTicket) delete markerByTicket[k];
+
+  tickets.forEach(t=>{
+    const marker = L.marker([t.lat,t.lng], { icon: makeIcon(!!t.surveyed) }).addTo(map);
+    marker.on('click', ()=>openDetail(t));
+    markerByTicket[t.ticket] = marker;
+  });
+  renderCounts();
+}
+
+function showToast(msg){
+  const toast = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  toast.classList.add('show');
+  setTimeout(()=> toast.classList.remove('show'), 2400);
+}
+
+function loadTickets(){
+  callApi('getRouteSurveyTickets', {}).then(data=>{
+    tickets = data || [];
+    plotTickets();
+  }).catch(err=>{
+    showToast('โหลดข้อมูลไม่สำเร็จ: ' + err.message);
+  });
+}
+loadTickets();
+
+const backdrop = document.getElementById('backdrop');
+const detailSheet = document.getElementById('detailSheet');
+const formSheet = document.getElementById('formSheet');
+
+function openDetail(t){
+  activeTicket = t;
+  document.getElementById('dTicket').textContent = t.ticket;
+  document.getElementById('dSubject').textContent = t.subject;
+  document.getElementById('dPlan').textContent = t.plan;
+  document.getElementById('dCause').textContent = t.cause;
+  document.getElementById('dFix').textContent = t.fix;
+
+  const chip = document.getElementById('dStatusChip');
+  const info = document.getElementById('dSurveyedInfo');
+  if(t.surveyed){
+    chip.textContent = '✓ ตรวจแล้ว';
+    chip.className = 'status-chip done';
+    info.style.display = 'block';
+    document.getElementById('dSurveyResult').textContent = t.surveyed.lineResult + ' (' + t.surveyed.lineStatus + ') · หัวต่อ: ' + t.surveyed.jointResult + ' (' + t.surveyed.jointStatus + ')';
+    document.getElementById('dInspector').textContent = t.surveyed.inspector + ' · ' + t.surveyed.surveyDate;
+    document.getElementById('openFormBtn').textContent = 'แก้ไขผลตรวจ';
+  } else {
+    chip.textContent = 'รอตรวจ';
+    chip.className = 'status-chip pending';
+    info.style.display = 'none';
+    document.getElementById('openFormBtn').textContent = 'บันทึกผลตรวจหน้างาน';
+  }
+
+  backdrop.classList.add('open');
+  formSheet.classList.remove('open');
+  detailSheet.classList.add('open');
+  map.panTo([t.lat, t.lng], { animate:true });
+}
+
+function closeSheets(){
+  backdrop.classList.remove('open');
+  detailSheet.classList.remove('open');
+  formSheet.classList.remove('open');
+}
+backdrop.addEventListener('click', closeSheets);
+
+document.getElementById('openFormBtn').addEventListener('click', ()=>{
+  document.getElementById('fSubject').textContent = activeTicket.subject;
+  document.getElementById('fDate').value = new Date().toISOString().slice(0,10); // default วันนี้
+  document.getElementById('fInspector').value = currentWho || '';
+  // เติมค่าเดิมถ้าเป็นการแก้ไขผลตรวจ
+  const s = activeTicket.surveyed;
+  document.getElementById('fLineResult').value = s ? s.lineResult : '';
+  document.getElementById('fLineStatus').value = s ? s.lineStatus : '';
+  document.getElementById('fJointResult').value = s ? s.jointResult : '';
+  document.getElementById('fJointStatus').value = s ? s.jointStatus : '';
+  document.getElementById('fRemark').value = s ? s.remark : '';
+  detailSheet.classList.remove('open');
+  formSheet.classList.add('open');
+});
+document.getElementById('backBtn').addEventListener('click', ()=>{
+  formSheet.classList.remove('open');
+  detailSheet.classList.add('open');
+});
+
+// ---------- ถ่ายรูป — สูงสุด 5 รูปต่อครั้ง ----------
+const MAX_PHOTOS = 5;
+let photoDataUrls = []; // data URL เต็ม (สำหรับ preview)
+
+function renderPhotoGrid(){
+  const grid = document.getElementById('photoGrid');
+  grid.innerHTML = '';
+  photoDataUrls.forEach((url, idx)=>{
+    const thumb = document.createElement('div');
+    thumb.className = 'photo-thumb';
+    thumb.innerHTML = '<img src="' + url + '"><button type="button" class="rm" data-idx="' + idx + '">✕</button>';
+    grid.appendChild(thumb);
+  });
+  document.getElementById('photoCountLabel').textContent = '(' + photoDataUrls.length + '/' + MAX_PHOTOS + ')';
+  const btn = document.getElementById('photoBtn');
+  btn.disabled = photoDataUrls.length >= MAX_PHOTOS;
+  document.getElementById('photoBtnLabel').textContent = photoDataUrls.length >= MAX_PHOTOS
+    ? 'ครบ ' + MAX_PHOTOS + ' รูปแล้ว' : 'ถ่ายรูปหน้างาน (เพิ่มได้สูงสุด ' + MAX_PHOTOS + ' รูป)';
+  btn.classList.toggle('has-photo', photoDataUrls.length > 0);
+}
+document.getElementById('photoGrid').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.rm');
+  if(!btn) return;
+  photoDataUrls.splice(Number(btn.dataset.idx), 1);
+  renderPhotoGrid();
+});
+
+document.getElementById('photoBtn').addEventListener('click', ()=> document.getElementById('photoInput').click());
+document.getElementById('photoInput').addEventListener('change', (e)=>{
+  const files = Array.from(e.target.files || []).slice(0, MAX_PHOTOS - photoDataUrls.length);
+  if(files.length === 0) return;
+  let pending = files.length;
+  files.forEach(file=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      photoDataUrls.push(reader.result);
+      pending--;
+      if(pending === 0) renderPhotoGrid();
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value = ''; // ให้เลือกไฟล์เดิมซ้ำได้ถ้าลบออกแล้วอยากเพิ่มใหม่
+});
+
+document.getElementById('saveBtn').addEventListener('click', ()=>{
+  const lineResult = document.getElementById('fLineResult').value;
+  const lineStatus = document.getElementById('fLineStatus').value;
+  const jointResult = document.getElementById('fJointResult').value;
+  const jointStatus = document.getElementById('fJointStatus').value;
+  const remark = document.getElementById('fRemark').value;
+  const inspector = document.getElementById('fInspector').value;
+  const surveyDate = document.getElementById('fDate').value;
+
+  if(!lineResult || !lineStatus || !jointResult || !jointStatus || !inspector || !surveyDate){
+    showToast('กรอกข้อมูลให้ครบก่อนบันทึก');
+    return;
+  }
+
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'กำลังบันทึก...';
+
+  // ตัด prefix "data:image/...;base64," ออก เหลือแค่ base64 ล้วนส่งให้ backend
+  const photosBase64 = photoDataUrls.map(u => u.split(',')[1]);
+
+  callApiPost('saveRouteSurvey', {
+    ticket: activeTicket.ticket,
+    subject: activeTicket.subject,
+    lineResult, lineStatus, jointResult, jointStatus,
+    photosBase64, remark, inspector, surveyDate,
+    by: currentWho || inspector
+  }).then(saved=>{
+    activeTicket.surveyed = saved;
+    markerByTicket[activeTicket.ticket].setIcon(makeIcon(true));
+    renderCounts();
+    closeSheets();
+    showToast('บันทึกผลตรวจแล้ว — หมุดเปลี่ยนเป็นสีน้ำเงิน');
+
+    ['fLineResult','fLineStatus','fJointResult','fJointStatus','fRemark','fInspector'].forEach(id=>document.getElementById(id).value='');
+    photoDataUrls = [];
+    renderPhotoGrid();
+  }).catch(err=>{
+    showToast('บันทึกไม่สำเร็จ: ' + err.message);
+  }).finally(()=>{
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'บันทึกผลตรวจ';
+  });
+});
+
+renderPhotoGrid();
+</script>
+</body>
+</html>
