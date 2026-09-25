@@ -116,8 +116,6 @@
   .rs-dot.red{background:var(--red);} .rs-dot.blue{background:var(--sky);}
   .rs-pin{width:28px;height:28px;}
   .rs-pin svg{width:100%;height:100%;display:block;filter:drop-shadow(0 3px 4px rgba(0,0,0,.35));}
-  .rs-pin.done svg .pin-body{fill:var(--sky);}
-  .rs-pin.pending svg .pin-body{fill:var(--red);}
   .rs-backdrop{position:fixed;inset:0;background:rgba(10,20,35,.45);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;}
   .rs-backdrop.open{opacity:1;pointer-events:auto;}
   .rs-sheet{position:fixed;left:0;right:0;bottom:0;z-index:61;background:#fff;border-radius:18px 18px 0 0;
@@ -144,6 +142,11 @@
   .rs-photo-btn.has-photo{border-style:solid;border-color:var(--sky);color:var(--navy);background:var(--sky-pale);}
   .rs-photo-btn:disabled{opacity:.5;cursor:not-allowed;}
   @keyframes rsSpin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+  .rs-assign-chip{width:34px;height:34px;border-radius:50%;border:2px solid transparent;color:#fff;
+    font-weight:700;font-size:13px;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .rs-assign-chip.active{border-color:var(--ink);box-shadow:0 0 0 2px #fff inset;}
+  .rs-assign-clear{background:none;border:1px solid var(--border);color:var(--muted);border-radius:50%;
+    width:34px;height:34px;font-size:14px;cursor:pointer;font-family:inherit;}
 </style>
 </head>
 <body>
@@ -545,7 +548,16 @@
         <div class="rs-field-row"><div class="lbl">ผู้ตรวจ</div><div class="val" id="rsDInspector"></div></div>
       </div>
 
-      <button class="btn btn-primary" style="margin-top:16px;" id="rsOpenFormBtn">บันทึกผลตรวจหน้างาน</button>
+      <div id="rsAssignBox" class="rs-field-row" style="align-items:flex-start;">
+        <div class="lbl" style="padding-top:5px;">มอบหมาย</div>
+        <div class="val" style="flex:1;">
+          <div id="rsAssignStatus" style="font-size:12.5px;color:var(--muted);margin-bottom:6px;">ยังไม่มอบหมาย</div>
+          <div id="rsAssignChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        </div>
+      </div>
+
+      <a href="#" target="_blank" id="rsNavigateBtn" class="btn btn-accent" style="margin-top:12px;text-decoration:none;">🧭 นำทางไปจุดนี้</a>
+      <button class="btn btn-primary" style="margin-top:8px;" id="rsOpenFormBtn">บันทึกผลตรวจหน้างาน</button>
     </div>
   </div>
 
@@ -2065,12 +2077,24 @@
   var rsPhotoDataUrls = [];
   var RS_MAX_PHOTOS = 5;
 
-  var rsPinSvg = '<div class="rs-pin-svg-wrap"><svg viewBox="0 0 30 38"><path class="pin-body" d="M15 0C6.7 0 0 6.7 0 15c0 10.5 15 23 15 23s15-12.5 15-23C30 6.7 23.3 0 15 0z"/><circle cx="15" cy="14" r="6" fill="#fff"/></svg></div>';
+  var rsPinSvg = '<div class="rs-pin-svg-wrap"><svg viewBox="0 0 30 38"><path class="pin-body" fill="{{color}}" d="M15 0C6.7 0 0 6.7 0 15c0 10.5 15 23 15 23s15-12.5 15-23C30 6.7 23.3 0 15 0z"/><circle cx="15" cy="14" r="6" fill="#fff"/></svg></div>';
 
-  function rsMakeIcon(done) {
+  var RS_ASSIGNEES = ['A', 'B', 'C', 'D', 'E', 'F'];
+  // สีต่อคน A-F — ตั้งใจเลี่ยงสีแดง (=รอตรวจ/ยังไม่มอบหมาย) และสีฟ้า (=ตรวจเสร็จแล้ว) เพื่อไม่ให้สับสน
+  var RS_ASSIGNEE_COLORS = { A: '#f39c12', B: '#9b59b6', C: '#16a085', D: '#e91e63', E: '#795548', F: '#34495e' };
+  var RS_COLOR_PENDING = '#c0392b';
+  var RS_COLOR_DONE = '#5b9bdb';
+
+  function rsColorFor(t) {
+    if (t.surveyed) return RS_COLOR_DONE;
+    if (t.assignedTo && RS_ASSIGNEE_COLORS[t.assignedTo]) return RS_ASSIGNEE_COLORS[t.assignedTo];
+    return RS_COLOR_PENDING;
+  }
+
+  function rsMakeIcon(t) {
     return L.divIcon({
-      className: 'rs-pin ' + (done ? 'done' : 'pending'),
-      html: rsPinSvg,
+      className: 'rs-pin',
+      html: rsPinSvg.replace('{{color}}', rsColorFor(t)),
       iconSize: [28, 36], iconAnchor: [14, 36], popupAnchor: [0, -32]
     });
   }
@@ -2101,10 +2125,21 @@
       });
       document.getElementById('rsSaveBtn').addEventListener('click', rsSaveSurvey);
       document.getElementById('rsRefreshBtn').addEventListener('click', function () { rsRefreshTickets(true); });
+      window.addEventListener('resize', rsLayout);
     }
+    rsLayout();
     // เผื่อผู้ใช้ย่อ/ขยายแอปแล้วขนาด container เปลี่ยน — ให้ Leaflet คำนวณใหม่
     setTimeout(function () { if (rsMap) rsMap.invalidateSize(); }, 100);
     rsRefreshTickets(false);
+  }
+
+  /* วางตำแหน่งแผนที่/แถบสรุปตามความสูงจริงของ header+teambar เสมอ (ไม่ hardcode)
+     กันปัญหาชื่อทีมยาว (เช่นอีเมล) ทำให้แถบ "ทีม:" ขึ้น 2 บรรทัดแล้วมาบังแถบสรุป */
+  function rsLayout() {
+    var teambar = document.querySelector('.teambar');
+    var bottom = teambar ? Math.ceil(teambar.getBoundingClientRect().bottom) : 92;
+    document.getElementById('rsMap').style.top = bottom + 'px';
+    document.querySelector('.rs-pill').style.top = (bottom + 8) + 'px';
   }
 
   /* โหลดหมุดล่าสุด — ใช้ทั้งตอนเข้าแท็บครั้งแรกและตอนกดปุ่มรีเฟรชเอง
@@ -2128,7 +2163,7 @@
     Object.keys(rsMarkerByTicket).forEach(function (k) { rsMap.removeLayer(rsMarkerByTicket[k]); });
     rsMarkerByTicket = {};
     rsTickets.forEach(function (t) {
-      var marker = L.marker([t.lat, t.lng], { icon: rsMakeIcon(!!t.surveyed) }).addTo(rsMap);
+      var marker = L.marker([t.lat, t.lng], { icon: rsMakeIcon(t) }).addTo(rsMap);
       marker.on('click', function () { rsOpenDetail(t); });
       rsMarkerByTicket[t.ticket] = marker;
     });
@@ -2166,10 +2201,45 @@
       document.getElementById('rsOpenFormBtn').textContent = 'บันทึกผลตรวจหน้างาน';
     }
 
+    rsRenderAssignChips(t);
+
     document.getElementById('rsBackdrop').classList.add('open');
     document.getElementById('rsFormSheet').classList.remove('open');
     document.getElementById('rsDetailSheet').classList.add('open');
     rsMap.panTo([t.lat, t.lng], { animate: true });
+  }
+
+  /* แสดงชิป A-F ให้เลือกมอบหมายงาน — ซ่อนไว้ถ้า ticket นี้ตรวจเสร็จแล้ว (สีฟ้า) เพราะ
+     ไม่มีประโยชน์จะมอบหมายซ้ำงานที่จบไปแล้ว */
+  function rsRenderAssignChips(t) {
+    var box = document.getElementById('rsAssignBox');
+    var statusEl = document.getElementById('rsAssignStatus');
+    var chipsEl = document.getElementById('rsAssignChips');
+
+    if (t.surveyed) { box.style.display = 'none'; return; }
+    box.style.display = 'flex';
+    statusEl.textContent = t.assignedTo ? ('มอบหมายให้ ' + t.assignedTo + ' แล้ว') : 'ยังไม่มอบหมาย';
+
+    var html = RS_ASSIGNEES.map(function (a) {
+      var active = (t.assignedTo === a) ? ' active' : '';
+      return '<button type="button" class="rs-assign-chip' + active + '" style="background:' + RS_ASSIGNEE_COLORS[a] + ';" data-assignee="' + a + '">' + a + '</button>';
+    }).join('') + (t.assignedTo ? '<button type="button" class="rs-assign-clear" data-assignee="">✕</button>' : '');
+    chipsEl.innerHTML = html;
+
+    chipsEl.querySelectorAll('button').forEach(function (btn) {
+      btn.addEventListener('click', function () { rsAssign(t, btn.dataset.assignee); });
+    });
+  }
+
+  function rsAssign(t, assignee) {
+    callApi('assignRouteSurveyTicket', { ticket: t.ticket, subject: t.subject, assignedTo: assignee, by: currentWho || currentTeam }).then(function (res) {
+      t.assignedTo = res.assignedTo;
+      rsMarkerByTicket[t.ticket].setIcon(rsMakeIcon(t));
+      rsRenderAssignChips(t);
+      showToast(assignee ? ('มอบหมายให้ ' + assignee + ' แล้ว') : 'ล้างการมอบหมายแล้ว');
+    }).catch(function (err) {
+      showToast('มอบหมายไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+    });
   }
 
   function rsCloseSheets() {
@@ -2256,7 +2326,7 @@
       by: currentWho || inspector
     }).then(function (saved) {
       rsActiveTicket.surveyed = saved;
-      rsMarkerByTicket[rsActiveTicket.ticket].setIcon(rsMakeIcon(true));
+      rsMarkerByTicket[rsActiveTicket.ticket].setIcon(rsMakeIcon(rsActiveTicket));
       rsRenderCounts();
       rsCloseSheets();
       showToast('บันทึกผลตรวจแล้ว — หมุดเปลี่ยนเป็นสีน้ำเงิน');
