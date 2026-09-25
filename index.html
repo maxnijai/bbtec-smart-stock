@@ -143,6 +143,7 @@
     font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
   .rs-photo-btn.has-photo{border-style:solid;border-color:var(--sky);color:var(--navy);background:var(--sky-pale);}
   .rs-photo-btn:disabled{opacity:.5;cursor:not-allowed;}
+  @keyframes rsSpin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
@@ -519,6 +520,7 @@
         <div class="rs-counts">
           <div><span class="rs-dot red"></span><span id="rsCountPending">–</span></div>
           <div><span class="rs-dot blue"></span><span id="rsCountDone">–</span></div>
+          <button type="button" id="rsRefreshBtn" title="รีเฟรชข้อมูล" style="background:none;border:none;color:#fff;font-size:16px;cursor:pointer;padding:0 0 0 4px;line-height:1;">⟳</button>
         </div>
       </div>
     </div>
@@ -2098,15 +2100,27 @@
         rsRenderPhotoGrid();
       });
       document.getElementById('rsSaveBtn').addEventListener('click', rsSaveSurvey);
+      document.getElementById('rsRefreshBtn').addEventListener('click', function () { rsRefreshTickets(true); });
     }
     // เผื่อผู้ใช้ย่อ/ขยายแอปแล้วขนาด container เปลี่ยน — ให้ Leaflet คำนวณใหม่
     setTimeout(function () { if (rsMap) rsMap.invalidateSize(); }, 100);
+    rsRefreshTickets(false);
+  }
 
+  /* โหลดหมุดล่าสุด — ใช้ทั้งตอนเข้าแท็บครั้งแรกและตอนกดปุ่มรีเฟรชเอง
+     ให้กดรีเฟรชได้เรื่อยๆ เพื่อเห็นหมุดที่คนอื่นเพิ่งตรวจเสร็จเปลี่ยนเป็นสีน้ำเงิน
+     กันเผลอไปตรวจซ้ำที่คนอื่นทำไปแล้ว */
+  function rsRefreshTickets(manual) {
+    var btn = document.getElementById('rsRefreshBtn');
+    if (manual && btn) btn.style.animation = 'rsSpin .7s linear infinite';
     callApi('getRouteSurveyTickets', {}).then(function (data) {
       rsTickets = data || [];
       rsPlotTickets();
+      if (manual) showToast('อัปเดตข้อมูลล่าสุดแล้ว');
     }).catch(function (err) {
       showToast('โหลดข้อมูล Route Survey ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+    }).finally(function () {
+      if (manual && btn) btn.style.animation = '';
     });
   }
 
