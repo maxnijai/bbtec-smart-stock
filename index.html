@@ -559,7 +559,7 @@
         </div>
       </div>
 
-      <a href="#" id="rsNavigateBtn" class="btn btn-accent" style="margin-top:12px;text-decoration:none;">🧭 นำทางไปจุดนี้</a>
+      <button type="button" id="rsNavigateBtn" class="btn btn-accent" style="margin-top:12px;">🧭 นำทางไปจุดนี้</button>
       <button class="btn btn-primary" style="margin-top:8px;" id="rsOpenFormBtn">บันทึกผลตรวจหน้างาน</button>
     </div>
   </div>
@@ -2085,6 +2085,7 @@
   var rsMarkerByTicket = {};
   var rsActiveTicket = null;
   var rsPhotoDataUrls = [];
+  var rsNavUrl = '';
   var RS_MAX_PHOTOS = 5;
 
   var rsPinSvg = '<div class="rs-pin-svg-wrap"><svg viewBox="0 0 30 38"><path class="pin-body" fill="{{color}}" d="M15 0C6.7 0 0 6.7 0 15c0 10.5 15 23 15 23s15-12.5 15-23C30 6.7 23.3 0 15 0z"/><circle cx="15" cy="14" r="6" fill="#fff"/></svg></div>';
@@ -2119,6 +2120,9 @@
 
       document.getElementById('rsBackdrop').addEventListener('click', rsCloseSheets);
       document.getElementById('rsOpenFormBtn').addEventListener('click', rsOpenForm);
+      document.getElementById('rsNavigateBtn').addEventListener('click', function () {
+        if (rsNavUrl) window.location.href = rsNavUrl;
+      });
       document.getElementById('rsBackBtn').addEventListener('click', function () {
         document.getElementById('rsFormSheet').classList.remove('open');
         document.getElementById('rsDetailSheet').classList.add('open');
@@ -2193,7 +2197,7 @@
     document.getElementById('rsDPlan').textContent = t.plan;
     document.getElementById('rsDCause').textContent = t.cause;
     document.getElementById('rsDFix').textContent = t.fix;
-    document.getElementById('rsNavigateBtn').href = 'https://www.google.com/maps/dir/?api=1&destination=' + t.lat + ',' + t.lng + '&travelmode=driving';
+    rsNavUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + t.lat + ',' + t.lng + '&travelmode=driving';
 
     var chip = document.getElementById('rsDStatusChip');
     var info = document.getElementById('rsDSurveyedInfo');
