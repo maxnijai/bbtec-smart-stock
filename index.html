@@ -150,6 +150,31 @@
   .rs-assign-chip.active{border-color:var(--ink);box-shadow:0 0 0 2px #fff inset;}
   .rs-assign-clear{background:none;border:1px solid var(--border);color:var(--muted);border-radius:50%;
     width:34px;height:34px;font-size:14px;cursor:pointer;font-family:inherit;}
+
+  /* ---------- Portable Test GEN ---------- */
+  .pg-seg{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
+  .pg-seg button{flex:1;min-width:0;padding:11px 6px;border:1.5px solid var(--border);background:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;}
+  .pg-seg button.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .pg-status{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;}
+  .pg-status button{padding:13px 6px;border:2px solid var(--border);background:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;color:var(--ink);cursor:pointer;}
+  .pg-status button.on[data-v="ติดปกติ"]{border-color:var(--green);background:#e8f3ea;color:var(--green);}
+  .pg-status button.on[data-v="สตาร์ทไม่ติด"]{border-color:var(--red);background:#fbe9e7;color:var(--red);}
+  .pg-status button.on[data-v="ส่งซ่อม"]{border-color:#b9802f;background:#fbf1e1;color:#9a6a22;}
+  .pg-status button.on[data-v="ไม่มี Gen"]{border-color:#6b7785;background:#eef0f2;color:#4d5864;}
+  .pg-hint{font-size:11.5px;color:var(--muted);font-weight:400;margin-left:4px;}
+  .pg-slot{border:1.5px dashed var(--border);border-radius:10px;padding:10px;background:var(--bg);margin-top:4px;}
+  .pg-slot.ok{border-style:solid;border-color:var(--green);background:#f3faf4;}
+  .pg-slot.bad{border-style:solid;border-color:var(--red);background:#fdf1ef;}
+  .pg-pick{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;border:none;border-radius:8px;background:var(--navy);color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+  .pg-meta{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:8px;align-items:center;}
+  .pg-meta .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);flex:1;}
+  .pg-meta .sz{font-weight:700;white-space:nowrap;}
+  .pg-err{font-size:12px;color:var(--red);margin-top:6px;line-height:1.5;}
+  .pg-prev{margin-top:8px;border-radius:8px;overflow:hidden;background:#000;}
+  .pg-prev img,.pg-prev video{width:100%;max-height:180px;object-fit:contain;display:block;}
+  .pg-rm{background:none;border:none;color:var(--muted);font-size:12px;text-decoration:underline;cursor:pointer;font-family:inherit;padding:0;}
+  .pg-existing{font-size:12.5px;color:var(--green);font-weight:600;line-height:1.5;}
+  .pg-existing a{color:var(--navy);}
 </style>
 </head>
 <body>
@@ -212,6 +237,13 @@
       <div>
         <div class="item-name" style="font-size:17px;">Route Survey</div>
         <div class="item-meta" style="margin-top:3px;">ตรวจแนวสาย · ตรวจหัวต่อ · จากแผนที่จุดซ่อม</div>
+      </div>
+    </div>
+    <div class="card" onclick="goToModule('portablegen')" style="cursor:pointer;padding:22px 18px;margin-bottom:14px;border-left:5px solid var(--sky);display:flex;align-items:center;gap:16px;">
+      <div style="font-size:40px;">🔌</div>
+      <div>
+        <div class="item-name" style="font-size:17px;">Portable Test GEN</div>
+        <div class="item-meta" style="margin-top:3px;">ส่งผลทดสอบเครื่องปั่นไฟ · รูป · คลิปสตาร์ท</div>
       </div>
     </div>
   </div>
@@ -531,6 +563,90 @@
       </div>
     </div>
 
+    <!-- Portable Test GEN -->
+    <div class="tab-panel" id="tab-portablegen">
+      <div class="section-label" style="margin:4px 0 8px 2px;">🔌 Portable Test GEN</div>
+      <div id="pgExisting" class="card" style="display:none;"></div>
+
+      <div class="card" id="pgForm">
+        <div class="field">
+          <label>Region <span style="color:var(--red)">*</span></label>
+          <div class="pg-seg" id="pgRegion">
+            <button type="button" data-v="NOR1">NOR1</button>
+            <button type="button" data-v="NOR2">NOR2</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Province <span style="color:var(--red)">*</span></label>
+          <select id="pgProvince">
+            <option value="">เลือกจังหวัด...</option>
+            <option>CMI</option><option>CRI</option><option>LPG</option><option>LPN</option><option>MHS</option>
+            <option>NAN</option><option>PHE</option><option>PYO</option><option>PCB</option><option>PCT</option>
+            <option>PSN</option><option>SKT</option><option>TAK</option><option>UTR</option><option>KPP</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>สถานะ Generator <span style="color:var(--red)">*</span></label>
+          <div class="pg-status" id="pgGenStatus">
+            <button type="button" data-v="ติดปกติ">✅ ติดปกติ</button>
+            <button type="button" data-v="สตาร์ทไม่ติด">⚠️ สตาร์ทไม่ติด</button>
+            <button type="button" data-v="ส่งซ่อม">🔧 ส่งซ่อม</button>
+            <button type="button" data-v="ไม่มี Gen">🚫 ไม่มี Gen</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>มีน้ำมันเชื้อเพลิงเพียงพอหรือไม่ <span style="color:var(--red)">*</span></label>
+          <div class="pg-seg" id="pgFuelEnough">
+            <button type="button" data-v="มี">มี</button>
+            <button type="button" data-v="ไม่มี">ไม่มี</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>ระดับน้ำมัน (%) <span style="color:var(--red)">*</span></label>
+          <div class="pg-seg" id="pgFuelLevel">
+            <button type="button" data-v="0-25%">0-25%</button>
+            <button type="button" data-v="26-50%">26-50%</button>
+            <button type="button" data-v="51-75%">51-75%</button>
+            <button type="button" data-v="76-100%">76-100%</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>ระยะเวลารันเครื่อง <span style="color:var(--red)">*</span></label>
+          <div class="pg-seg" id="pgRunTime">
+            <button type="button" data-v="ต่ำกว่า 5 นาที">&lt; 5 นาที</button>
+            <button type="button" data-v="5-10 นาที">5-10 นาที</button>
+            <button type="button" data-v="มากกว่า 10 นาที">&gt; 10 นาที</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>คลิปสตาร์ท Generator <span style="color:var(--red)">*</span><span class="pg-hint">วีดีโอ ไม่เกิน 10 MB</span></label>
+          <div class="pg-slot" id="pgSlot-VIDEO" data-kind="VIDEO"></div>
+        </div>
+        <div class="field">
+          <label>รูปขณะเครื่องทำงาน <span style="color:var(--red)">*</span><span class="pg-hint">ให้เห็นป้ายทะเบียนรถด้วย</span></label>
+          <div class="pg-slot" id="pgSlot-RUNNING" data-kind="RUNNING"></div>
+        </div>
+        <div class="field">
+          <label>รูปสายไฟ, Socket Gen <span style="color:var(--red)">*</span><span class="pg-hint">วางด้วยกัน ถ่ายรูปเดียว</span></label>
+          <div class="pg-slot" id="pgSlot-CABLE_SOCKET" data-kind="CABLE_SOCKET"></div>
+        </div>
+        <div class="field">
+          <label>รูปวัดแรงดันไฟฟ้าขณะ Gen ทำงาน <span style="color:var(--red)">*</span></label>
+          <div class="pg-slot" id="pgSlot-VOLTAGE" data-kind="VOLTAGE"></div>
+        </div>
+        <div class="field">
+          <label>หมายเหตุปัญหา <span class="pg-hint">(หากมี)</span></label>
+          <textarea id="pgRemark" rows="3" placeholder="อธิบายปัญหาที่พบ" style="resize:vertical;"></textarea>
+          <div class="pg-hint" style="margin:8px 0 0 0;">แนบรูปประกอบปัญหา (ถ้ามี)</div>
+          <div class="pg-slot" id="pgSlot-PROBLEM" data-kind="PROBLEM"></div>
+        </div>
+
+        <div id="pgProgress" style="display:none;font-size:12.5px;color:var(--navy);font-weight:600;margin-bottom:8px;line-height:1.5;"></div>
+        <button type="button" class="btn btn-primary" id="pgSubmitBtn">ส่งผลทดสอบ</button>
+      </div>
+    </div>
+
   </div>
 
   <!-- ===== Route Survey: bottom sheets (นอก .content เพื่อไม่ให้ padding/max-width ของ .content บีบ) ===== -->
@@ -641,6 +757,7 @@
     <button class="nav-btn" onclick="showTab('history', event)"><span class="icon">🕐</span>ประวัติ</button>
     <button class="nav-btn" onclick="showTab('checkin', event)"><span class="icon">👥</span>รายงานตัว</button>
     <button class="nav-btn" onclick="showTab('routesurvey', event)"><span class="icon">🗺️</span>Route Survey</button>
+    <button class="nav-btn" onclick="showTab('portablegen', event)"><span class="icon">🔌</span>Portable GEN</button>
   </div>
 
 </div>
@@ -771,7 +888,7 @@
     if (module === 'stock') {
       allNavBtns.forEach(function(b) {
         var oc = b.getAttribute('onclick') || '';
-        if (oc.indexOf('checkin') >= 0 || oc.indexOf('routesurvey') >= 0) b.style.display = 'none';
+        if (oc.indexOf('checkin') >= 0 || oc.indexOf('routesurvey') >= 0 || oc.indexOf('portablegen') >= 0) b.style.display = 'none';
         if (oc.indexOf("'count'") >= 0) b.classList.add('active');
       });
       document.getElementById('tab-count').classList.add('active');
@@ -794,6 +911,14 @@
       });
       document.getElementById('tab-routesurvey').classList.add('active');
       loadRouteSurveyTab();
+    } else if (module === 'portablegen') {
+      allNavBtns.forEach(function(b) {
+        var oc = b.getAttribute('onclick') || '';
+        if (oc.indexOf('portablegen') < 0) b.style.display = 'none';
+        else b.classList.add('active');
+      });
+      document.getElementById('tab-portablegen').classList.add('active');
+      loadPortableGenTab();
     }
   }
   function loadTeamList() {
@@ -884,6 +1009,7 @@
     if (name === 'count') loadTransfers();
     if (name === 'checkin') loadCheckinTab();
     if (name === 'routesurvey') loadRouteSurveyTab();
+    if (name === 'portablegen') loadPortableGenTab();
   }
   function rsSetBodyLock(on) {
     document.documentElement.classList.toggle('rs-locked', on);
@@ -2352,6 +2478,217 @@
     }).finally(function () {
       saveBtn.disabled = false;
       saveBtn.textContent = 'บันทึกผลตรวจ';
+    });
+  }
+
+  /* ============ Portable Test GEN ============ */
+  var PG_MAX_BYTES = 10 * 1024 * 1024;
+  // ไฟล์ที่บังคับต่อสถานะ Generator — ตอนนี้ทุกสถานะบังคับครบ 4 ไฟล์ (ตรงกับ portableGenRequiredKinds_ ฝั่ง Code.gs)
+  var PG_REQUIRED = { 'ติดปกติ': ['VIDEO','RUNNING','CABLE_SOCKET','VOLTAGE'], 'สตาร์ทไม่ติด': ['VIDEO','RUNNING','CABLE_SOCKET','VOLTAGE'],
+                      'ส่งซ่อม': ['VIDEO','RUNNING','CABLE_SOCKET','VOLTAGE'], 'ไม่มี Gen': ['VIDEO','RUNNING','CABLE_SOCKET','VOLTAGE'] };
+  var PG_LABELS = { VIDEO: 'คลิปสตาร์ท Generator', RUNNING: 'รูปขณะเครื่องทำงาน', CABLE_SOCKET: 'รูปสายไฟ/Socket', VOLTAGE: 'รูปวัดแรงดัน', PROBLEM: 'รูปประกอบปัญหา' };
+  var pgState = { region: '', province: '', genStatus: '', fuelEnough: '', fuelLevel: '', runTime: '' };
+  var pgFiles = {};        // kind -> File ที่ผู้ใช้เลือกใหม่
+  var pgExisting = {};     // kind -> ลิงก์ไฟล์เดิมที่เคยส่งไว้
+  var pgUploaded = {};     // kind -> { file, url } อัปโหลดสำเร็จแล้วในรอบนี้ (กันอัปซ้ำถ้าบันทึกแถวพลาดแล้วกดใหม่)
+  var pgBuilt = false;
+  var pgBusy = false;
+
+  function pgFmtSize(b) { return (b / 1024 / 1024).toFixed(1) + ' MB'; }
+
+  function pgBindSeg(id, key) {
+    document.querySelectorAll('#' + id + ' button').forEach(function (b) {
+      b.addEventListener('click', function () { pgSetSeg(id, key, b.dataset.v); });
+    });
+  }
+  function pgSetSeg(id, key, val) {
+    pgState[key] = val || '';
+    document.querySelectorAll('#' + id + ' button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === val); });
+  }
+
+  function pgBuildSlot(slot) {
+    var kind = slot.dataset.kind, isVideo = kind === 'VIDEO';
+    slot.innerHTML =
+      '<div class="pg-old" style="display:none;"></div>' +
+      '<button type="button" class="pg-pick">' + (isVideo ? '🎥 ถ่าย/เลือกคลิป' : '📷 ถ่าย/เลือกรูป') + '</button>' +
+      '<input type="file" accept="' + (isVideo ? 'video/*' : 'image/*') + '" capture="environment" style="display:none;">' +
+      '<div class="pg-info" style="display:none;"></div>';
+    var input = slot.querySelector('input'), pick = slot.querySelector('.pg-pick'), info = slot.querySelector('.pg-info');
+    pick.addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', function () {
+      var f = input.files[0];
+      if (!f) return;
+      if (isVideo && f.size > PG_MAX_BYTES) {
+        delete pgFiles[kind];
+        slot.classList.remove('ok'); slot.classList.add('bad');
+        info.innerHTML = '<div class="pg-meta"><span class="nm">' + f.name + '</span><span class="sz" style="color:var(--red);">' + pgFmtSize(f.size) + '</span></div>' +
+          '<div class="pg-err">คลิปใหญ่เกิน 10 MB — ลองถ่ายให้สั้นลง (ประมาณ 10–15 วินาที) หรือลดความละเอียดวิดีโอในตั้งค่ากล้อง แล้วถ่ายใหม่</div>';
+        info.style.display = 'block';
+        input.value = '';
+        return;
+      }
+      pgFiles[kind] = f;
+      delete pgUploaded[kind];
+      var url = URL.createObjectURL(f);
+      slot.classList.remove('bad'); slot.classList.add('ok');
+      info.innerHTML = '<div class="pg-meta"><span class="nm">' + f.name + '</span><span class="sz" style="color:var(--green);">' + pgFmtSize(f.size) + (isVideo ? '' : ' (ระบบย่อให้ตอนส่ง)') + '</span></div>' +
+        '<div class="pg-prev">' + (isVideo ? '<video src="' + url + '" controls muted preload="metadata"></video>' : '<img src="' + url + '">') + '</div>' +
+        '<div style="margin-top:6px;"><button type="button" class="pg-rm">ลบ / เลือกใหม่</button></div>';
+      info.style.display = 'block';
+      slot.querySelector('.pg-old').style.display = 'none';
+      pick.style.display = 'none';
+      info.querySelector('.pg-rm').addEventListener('click', function () {
+        delete pgFiles[kind]; delete pgUploaded[kind]; input.value = '';
+        slot.classList.remove('ok', 'bad'); info.style.display = 'none'; pick.style.display = '';
+        pgRenderOld(kind);
+      });
+    });
+  }
+
+  function pgRenderOld(kind) {
+    var slot = document.getElementById('pgSlot-' + kind), old = slot.querySelector('.pg-old');
+    if (pgExisting[kind] && !pgFiles[kind]) {
+      old.innerHTML = '<div class="pg-existing">✓ มีไฟล์เดิมแล้ว — <a href="' + pgExisting[kind] + '" target="_blank" rel="noopener">ดูไฟล์</a> · ถ่าย/เลือกใหม่เพื่อเปลี่ยน</div>';
+      old.style.display = 'block';
+      slot.classList.add('ok');
+      slot.querySelector('.pg-pick').style.marginTop = '8px';
+    } else {
+      old.style.display = 'none';
+      if (!pgFiles[kind]) slot.classList.remove('ok');
+    }
+  }
+
+  function loadPortableGenTab() {
+    if (!pgBuilt) {
+      pgBindSeg('pgRegion', 'region'); pgBindSeg('pgGenStatus', 'genStatus');
+      pgBindSeg('pgFuelEnough', 'fuelEnough'); pgBindSeg('pgFuelLevel', 'fuelLevel'); pgBindSeg('pgRunTime', 'runTime');
+      document.getElementById('pgProvince').addEventListener('change', function (e) { pgState.province = e.target.value; });
+      document.querySelectorAll('.pg-slot').forEach(pgBuildSlot);
+      document.getElementById('pgSubmitBtn').addEventListener('click', pgSubmit);
+      pgBuilt = true;
+    }
+    // เดาจังหวัดจาก Team ID (เช่น PS-NR-CMI-OFC-002 → CMI) ให้เลือกไว้ก่อน แก้ได้
+    var seg = String(currentTeam || '').split('-')[2];
+    var sel = document.getElementById('pgProvince');
+    if (!pgState.province && seg && Array.from(sel.options).some(function (o) { return o.value === seg; })) {
+      sel.value = seg; pgState.province = seg;
+    }
+    var box = document.getElementById('pgExisting');
+    callApi('getPortableGenTest', { teamId: currentTeam }).then(function (rec) {
+      if (!rec) { box.style.display = 'none'; return; }
+      pgSetSeg('pgRegion', 'region', rec.region);
+      sel.value = rec.province; pgState.province = rec.province;
+      pgSetSeg('pgGenStatus', 'genStatus', rec.genStatus);
+      pgSetSeg('pgFuelEnough', 'fuelEnough', rec.fuelEnough);
+      pgSetSeg('pgFuelLevel', 'fuelLevel', rec.fuelLevel);
+      pgSetSeg('pgRunTime', 'runTime', rec.runTime);
+      document.getElementById('pgRemark').value = rec.remark || '';
+      pgExisting = {};
+      Object.keys(rec.links || {}).forEach(function (k) { if (rec.links[k]) pgExisting[k] = rec.links[k]; });
+      ['VIDEO', 'RUNNING', 'CABLE_SOCKET', 'VOLTAGE', 'PROBLEM'].forEach(pgRenderOld);
+      box.innerHTML = '<div class="pg-existing">✓ ทีมนี้ส่งผลแล้ว (อัปเดตล่าสุด ' + rec.updatedAt + ') — แก้ไขแล้วกดส่งซ้ำได้ จะอัปเดตแถวเดิม' +
+        (rec.folderLink ? '<br><a href="' + rec.folderLink + '" target="_blank" rel="noopener">📁 เปิดอัลบั้มของทีม</a>' : '') + '</div>';
+      box.style.display = 'block';
+      document.getElementById('pgSubmitBtn').textContent = 'บันทึกการแก้ไข';
+    }).catch(function (err) {
+      showToast('โหลดข้อมูล Portable GEN ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function pgBlobToBase64(blob) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(String(r.result).split(',')[1]); };
+      r.onerror = function () { reject(new Error('อ่านไฟล์ไม่สำเร็จ')); };
+      r.readAsDataURL(blob);
+    });
+  }
+
+  // ย่อรูปก่อนส่ง (ด้านยาวสุด 1600px, JPEG) — รูปมือถือ 3-6 MB เหลือราว 300-600 KB ส่งเร็วและไม่ชนเพดาน 10 MB
+  function pgCompressImage(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file), img = new Image();
+      img.onload = function () {
+        var max = 1600, w = img.naturalWidth, h = img.naturalHeight, sc = Math.min(1, max / Math.max(w, h));
+        var c = document.createElement('canvas');
+        c.width = Math.round(w * sc); c.height = Math.round(h * sc);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob(function (b) { b ? resolve(b) : reject(new Error('ย่อรูปไม่สำเร็จ')); }, 'image/jpeg', 0.82);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('อ่านรูปไม่ได้')); };
+      img.src = url;
+    });
+  }
+
+  function pgUploadOne(kind, file) {
+    var isVideo = kind === 'VIDEO';
+    var prep = isVideo ? Promise.resolve(file) : pgCompressImage(file).catch(function () {
+      if (file.size <= PG_MAX_BYTES) return file; // ย่อไม่ได้ แต่ไฟล์เดิมไม่เกิน 10 MB ก็ส่งตามเดิม
+      throw new Error('ย่อรูปไม่ได้และไฟล์ใหญ่เกิน 10 MB');
+    });
+    return prep.then(function (blob) {
+      return pgBlobToBase64(blob).then(function (b64) {
+        return callApiPost('uploadPortableGenFile', {
+          teamId: currentTeam, kind: kind, mimeType: blob.type || file.type, fileName: isVideo ? file.name : 'photo.jpg', base64: b64
+        });
+      });
+    }).then(function (res) { pgUploaded[kind] = { file: file, url: res.url }; return res.url; });
+  }
+
+  function pgSubmit() {
+    if (pgBusy) return;
+    var s = pgState, errs = [];
+    if (!s.region) errs.push('เลือก Region');
+    if (!s.province) errs.push('เลือก Province');
+    if (!s.genStatus) errs.push('เลือกสถานะ Generator');
+    if (!s.fuelEnough) errs.push('ระบุว่ามีน้ำมันเพียงพอหรือไม่');
+    if (!s.fuelLevel) errs.push('เลือกระดับน้ำมัน');
+    if (!s.runTime) errs.push('เลือกระยะเวลารันเครื่อง');
+    (PG_REQUIRED[s.genStatus] || PG_REQUIRED['ติดปกติ']).forEach(function (k) {
+      if (!pgFiles[k] && !pgExisting[k]) errs.push('แนบ' + PG_LABELS[k]);
+    });
+    if (errs.length) { showToast('ยังไม่ครบ: ' + errs[0] + (errs.length > 1 ? ' (+อีก ' + (errs.length - 1) + ')' : '')); return; }
+
+    var btn = document.getElementById('pgSubmitBtn'), prog = document.getElementById('pgProgress');
+    var label = btn.textContent;
+    pgBusy = true; btn.disabled = true; prog.style.display = 'block';
+
+    var kinds = Object.keys(pgFiles).filter(function (k) { return !(pgUploaded[k] && pgUploaded[k].file === pgFiles[k]); });
+    var done = 0;
+    var chain = kinds.reduce(function (p, k) {
+      return p.then(function () {
+        done++;
+        prog.textContent = 'กำลังอัปโหลด ' + done + '/' + kinds.length + ': ' + PG_LABELS[k] + ' (อย่าปิดหน้านี้)';
+        return pgUploadOne(k, pgFiles[k]);
+      });
+    }, Promise.resolve());
+
+    chain.then(function () {
+      prog.textContent = 'กำลังบันทึกผล...';
+      var links = {};
+      Object.keys(pgFiles).forEach(function (k) { if (pgUploaded[k]) links[k] = pgUploaded[k].url; });
+      return callApiPost('savePortableGenTest', {
+        teamId: currentTeam, region: s.region, province: s.province, genStatus: s.genStatus,
+        fuelEnough: s.fuelEnough, fuelLevel: s.fuelLevel, runTime: s.runTime,
+        remark: document.getElementById('pgRemark').value, links: links, by: currentWho || currentTeam
+      });
+    }).then(function (rec) {
+      showToast('ส่งผลทดสอบเรียบร้อยแล้ว ✓');
+      pgFiles = {}; pgUploaded = {};
+      document.querySelectorAll('.pg-slot').forEach(function (slot) {
+        slot.classList.remove('ok', 'bad');
+        slot.querySelector('.pg-info').style.display = 'none';
+        slot.querySelector('.pg-pick').style.display = '';
+        slot.querySelector('input').value = '';
+      });
+      loadPortableGenTab(); // โหลดสถานะล่าสุดกลับมาโชว์ (ลิงก์ไฟล์/อัลบั้ม)
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }).catch(function (err) {
+      showToast('ส่งไม่สำเร็จ: ' + (err && err.message ? err.message : err) + ' — กดส่งใหม่ได้ (ไฟล์ที่อัปโหลดแล้วไม่ต้องส่งซ้ำ)');
+    }).finally(function () {
+      pgBusy = false; btn.disabled = false; prog.style.display = 'none';
+      btn.textContent = document.getElementById('pgExisting').style.display === 'block' ? 'บันทึกการแก้ไข' : label;
     });
   }
 
