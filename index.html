@@ -173,6 +173,13 @@
   .pg-prev{margin-top:8px;border-radius:8px;overflow:hidden;background:#000;}
   .pg-prev img,.pg-prev video{width:100%;max-height:180px;object-fit:contain;display:block;}
   .pg-rm{background:none;border:none;color:var(--muted);font-size:12px;text-decoration:underline;cursor:pointer;font-family:inherit;padding:0;}
+  .pg-types button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:10px;background:#fff;text-align:left;font-family:inherit;margin-bottom:8px;cursor:pointer;}
+  .pg-types button:last-child{margin-bottom:0;}
+  .pg-types button.on{border-color:var(--navy);background:var(--sky-pale);}
+  .pg-types b{font-size:14.5px;color:var(--ink);}
+  .pg-types span{font-size:12px;color:var(--muted);}
+  .pg-status button.on[data-v="พร้อมใช้งาน"]{border-color:var(--green);background:#e8f3ea;color:var(--green);}
+  .pg-status button.on[data-v="ชำรุด"]{border-color:var(--red);background:#fbe9e7;color:var(--red);}
   .pg-existing{font-size:12.5px;color:var(--green);font-weight:600;line-height:1.5;}
   .pg-existing a{color:var(--navy);}
 </style>
@@ -570,80 +577,93 @@
 
       <div class="card" id="pgForm">
         <div class="field">
-          <label>Region <span style="color:var(--red)">*</span></label>
-          <div class="pg-seg" id="pgRegion">
-            <button type="button" data-v="NOR1">NOR1</button>
-            <button type="button" data-v="NOR2">NOR2</button>
-          </div>
-        </div>
-        <div class="field">
-          <label>Province <span style="color:var(--red)">*</span></label>
-          <select id="pgProvince">
-            <option value="">เลือกจังหวัด...</option>
-            <option>CMI</option><option>CRI</option><option>LPG</option><option>LPN</option><option>MHS</option>
-            <option>NAN</option><option>PHE</option><option>PYO</option><option>PCB</option><option>PCT</option>
-            <option>PSN</option><option>SKT</option><option>TAK</option><option>UTR</option><option>KPP</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>สถานะ Generator <span style="color:var(--red)">*</span></label>
-          <div class="pg-status" id="pgGenStatus">
-            <button type="button" data-v="ติดปกติ">✅ ติดปกติ</button>
-            <button type="button" data-v="สตาร์ทไม่ติด">⚠️ สตาร์ทไม่ติด</button>
-            <button type="button" data-v="ส่งซ่อม">🔧 ส่งซ่อม</button>
-            <button type="button" data-v="ไม่มี Gen">🚫 ไม่มี Gen</button>
-          </div>
-        </div>
-        <div class="field">
-          <label>มีน้ำมันเชื้อเพลิงเพียงพอหรือไม่ <span style="color:var(--red)">*</span></label>
-          <div class="pg-seg" id="pgFuelEnough">
-            <button type="button" data-v="มี">มี</button>
-            <button type="button" data-v="ไม่มี">ไม่มี</button>
-          </div>
-        </div>
-        <div class="field">
-          <label>ระดับน้ำมัน (%) <span style="color:var(--red)">*</span></label>
-          <div class="pg-seg" id="pgFuelLevel">
-            <button type="button" data-v="0-25%">0-25%</button>
-            <button type="button" data-v="26-50%">26-50%</button>
-            <button type="button" data-v="51-75%">51-75%</button>
-            <button type="button" data-v="76-100%">76-100%</button>
-          </div>
-        </div>
-        <div class="field">
-          <label>ระยะเวลารันเครื่อง <span style="color:var(--red)">*</span></label>
-          <div class="pg-seg" id="pgRunTime">
-            <button type="button" data-v="ต่ำกว่า 5 นาที">&lt; 5 นาที</button>
-            <button type="button" data-v="5-10 นาที">5-10 นาที</button>
-            <button type="button" data-v="มากกว่า 10 นาที">&gt; 10 นาที</button>
+          <label>ประเภทรายงาน <span style="color:var(--red)">*</span></label>
+          <div class="pg-types" id="pgReportType">
+            <button type="button" data-v="Daily Generator Check"><b>Daily Generator Check</b><span>ตรวจประจำวัน · รูป Generator บนรถ</span></button>
+            <button type="button" data-v="Weekly Generator Start Test"><b>Weekly Generator Start Test</b><span>ทดสอบสตาร์ทประจำสัปดาห์ · คลิป + รูป</span></button>
           </div>
         </div>
 
-        <div class="field">
-          <label>คลิปสตาร์ท Generator <span style="color:var(--red)">*</span><span class="pg-hint">วีดีโอ ไม่เกิน 10 MB</span></label>
-          <div class="pg-slot" id="pgSlot-VIDEO" data-kind="VIDEO"></div>
-        </div>
-        <div class="field">
-          <label>รูปขณะเครื่องทำงาน <span style="color:var(--red)">*</span><span class="pg-hint">ให้เห็นป้ายทะเบียนรถด้วย</span></label>
-          <div class="pg-slot" id="pgSlot-RUNNING" data-kind="RUNNING"></div>
-        </div>
-        <div class="field">
-          <label>รูปสายไฟ, Socket Gen <span style="color:var(--red)">*</span><span class="pg-hint">วางด้วยกัน ถ่ายรูปเดียว</span></label>
-          <div class="pg-slot" id="pgSlot-CABLE_SOCKET" data-kind="CABLE_SOCKET"></div>
-        </div>
-        <div class="field">
-          <label>รูปวัดแรงดันไฟฟ้าขณะ Gen ทำงาน <span style="color:var(--red)">*</span></label>
-          <div class="pg-slot" id="pgSlot-VOLTAGE" data-kind="VOLTAGE"></div>
-        </div>
-        <div class="field">
-          <label>หมายเหตุปัญหา <span class="pg-hint">(หากมี)</span></label>
-          <textarea id="pgRemark" rows="3" placeholder="อธิบายปัญหาที่พบ" style="resize:vertical;"></textarea>
-          <div class="pg-hint" style="margin:8px 0 0 0;">แนบรูปประกอบปัญหา (ถ้ามี)</div>
-          <div class="pg-slot" id="pgSlot-PROBLEM" data-kind="PROBLEM"></div>
-        </div>
+        <div id="pgBody" style="display:none;">
+          <div class="field">
+            <label>Region <span style="color:var(--red)">*</span></label>
+            <div class="pg-seg" id="pgRegion">
+              <button type="button" data-v="NOR1">NOR1</button>
+              <button type="button" data-v="NOR2">NOR2</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Province <span style="color:var(--red)">*</span></label>
+            <select id="pgProvince">
+              <option value="">เลือกจังหวัด...</option>
+              <option>CMI</option><option>CRI</option><option>LPG</option><option>LPN</option><option>MHS</option>
+              <option>NAN</option><option>PHE</option><option>PYO</option><option>PCB</option><option>PCT</option>
+              <option>PSN</option><option>SKT</option><option>TAK</option><option>UTR</option><option>KPP</option>
+            </select>
+          </div>
 
-        <div id="pgProgress" style="display:none;font-size:12.5px;color:var(--navy);font-weight:600;margin-bottom:8px;line-height:1.5;"></div>
-        <button type="button" class="btn btn-primary" id="pgSubmitBtn">ส่งผลทดสอบ</button>
+          <div id="pgDailyOnly" class="field" style="display:none;">
+            <label>รูป Generator บนรถ <span style="color:var(--red)">*</span><span class="pg-hint">เห็น Generator ชัดเจน เห็นรถคันที่ติดตั้ง</span></label>
+            <div class="pg-slot" id="pgSlot-VEHICLE" data-kind="VEHICLE"></div>
+          </div>
+
+          <div class="field">
+            <label>สถานะ Generator <span style="color:var(--red)">*</span></label>
+            <div class="pg-status" id="pgGenStatus"></div>
+          </div>
+          <div class="field">
+            <label>มีน้ำมันเชื้อเพลิงเพียงพอหรือไม่ <span style="color:var(--red)">*</span></label>
+            <div class="pg-seg" id="pgFuelEnough">
+              <button type="button" data-v="มี">มี</button>
+              <button type="button" data-v="ไม่มี">ไม่มี</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>ระดับน้ำมัน (%) <span style="color:var(--red)">*</span></label>
+            <div class="pg-seg" id="pgFuelLevel">
+              <button type="button" data-v="0-25%">0-25%</button>
+              <button type="button" data-v="26-50%">26-50%</button>
+              <button type="button" data-v="51-75%">51-75%</button>
+              <button type="button" data-v="76-100%">76-100%</button>
+            </div>
+          </div>
+
+          <div id="pgWeeklyOnly" style="display:none;">
+            <div class="field">
+              <label>ระยะเวลารันเครื่อง <span style="color:var(--red)">*</span></label>
+              <div class="pg-seg" id="pgRunTime">
+                <button type="button" data-v="ต่ำกว่า 5 นาที">&lt; 5 นาที</button>
+                <button type="button" data-v="5-10 นาที">5-10 นาที</button>
+                <button type="button" data-v="มากกว่า 10 นาที">&gt; 10 นาที</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>คลิปสตาร์ท Generator <span style="color:var(--red)">*</span><span class="pg-hint">วีดีโอ ไม่เกิน 10 MB</span></label>
+              <div class="pg-slot" id="pgSlot-VIDEO" data-kind="VIDEO"></div>
+            </div>
+            <div class="field">
+              <label>รูปขณะเครื่องทำงาน <span style="color:var(--red)">*</span><span class="pg-hint">ให้เห็นป้ายทะเบียนรถด้วย</span></label>
+              <div class="pg-slot" id="pgSlot-RUNNING" data-kind="RUNNING"></div>
+            </div>
+            <div class="field">
+              <label>รูปสายไฟ, Socket Gen <span style="color:var(--red)">*</span><span class="pg-hint">วางด้วยกัน ถ่ายรูปเดียว</span></label>
+              <div class="pg-slot" id="pgSlot-CABLE_SOCKET" data-kind="CABLE_SOCKET"></div>
+            </div>
+            <div class="field">
+              <label>รูปวัดแรงดันไฟฟ้าขณะ Gen ทำงาน <span style="color:var(--red)">*</span></label>
+              <div class="pg-slot" id="pgSlot-VOLTAGE" data-kind="VOLTAGE"></div>
+            </div>
+            <div class="field">
+              <label>หมายเหตุปัญหา <span class="pg-hint">(หากมี)</span></label>
+              <textarea id="pgRemark" rows="3" placeholder="อธิบายปัญหาที่พบ" style="resize:vertical;"></textarea>
+              <div class="pg-hint" style="margin:8px 0 0 0;">แนบรูปประกอบปัญหา (ถ้ามี)</div>
+              <div class="pg-slot" id="pgSlot-PROBLEM" data-kind="PROBLEM"></div>
+            </div>
+          </div>
+
+          <div id="pgProgress" style="display:none;font-size:12.5px;color:var(--navy);font-weight:600;margin-bottom:8px;line-height:1.5;"></div>
+          <button type="button" class="btn btn-primary" id="pgSubmitBtn">ส่งรายงาน</button>
+        </div>
       </div>
     </div>
 
@@ -2483,27 +2503,55 @@
 
   /* ============ Portable Test GEN ============ */
   var PG_MAX_BYTES = 10 * 1024 * 1024;
-  // ไฟล์ที่บังคับต่อสถานะ Generator — ตอนนี้ทุกสถานะบังคับครบ 4 ไฟล์ (ตรงกับ portableGenRequiredKinds_ ฝั่ง Code.gs)
-  var PG_REQUIRED = { 'ติดปกติ': ['VIDEO','RUNNING','CABLE_SOCKET','VOLTAGE'], 'สตาร์ทไม่ติด': ['VIDEO','RUNNING','CABLE_SOCKET','VOLTAGE'],
-                      'ส่งซ่อม': ['VIDEO','RUNNING','CABLE_SOCKET','VOLTAGE'], 'ไม่มี Gen': ['VIDEO','RUNNING','CABLE_SOCKET','VOLTAGE'] };
-  var PG_LABELS = { VIDEO: 'คลิปสตาร์ท Generator', RUNNING: 'รูปขณะเครื่องทำงาน', CABLE_SOCKET: 'รูปสายไฟ/Socket', VOLTAGE: 'รูปวัดแรงดัน', PROBLEM: 'รูปประกอบปัญหา' };
-  var pgState = { region: '', province: '', genStatus: '', fuelEnough: '', fuelLevel: '', runTime: '' };
+  var PG_TYPE_DAILY = 'Daily Generator Check', PG_TYPE_WEEKLY = 'Weekly Generator Start Test';
+  var PG_ALL_KINDS = ['VEHICLE', 'VIDEO', 'RUNNING', 'CABLE_SOCKET', 'VOLTAGE', 'PROBLEM'];
+  var PG_LABELS = { VEHICLE: 'รูป Generator บนรถ', VIDEO: 'คลิปสตาร์ท Generator', RUNNING: 'รูปขณะเครื่องทำงาน', CABLE_SOCKET: 'รูปสายไฟ/Socket', VOLTAGE: 'รูปวัดแรงดัน', PROBLEM: 'รูปประกอบปัญหา' };
+  // ตั้งค่าต่อประเภทรายงาน: ตัวเลือกสถานะ / ไฟล์ที่บังคับ (ตรงกับ portableGenRequiredKinds_ ฝั่ง Code.gs) / ไฟล์ที่รับได้
+  var PG_TYPES = {};
+  PG_TYPES[PG_TYPE_DAILY] = {
+    statuses: [['พร้อมใช้งาน', '✅'], ['ชำรุด', '❌'], ['ส่งซ่อม', '🔧'], ['ไม่มี Gen', '🚫']],
+    required: ['VEHICLE'], kinds: ['VEHICLE'], needRunTime: false,
+    submit: 'ส่งรายงานประจำวัน', sentWord: 'รายงานของวันนี้'
+  };
+  PG_TYPES[PG_TYPE_WEEKLY] = {
+    statuses: [['ติดปกติ', '✅'], ['สตาร์ทไม่ติด', '⚠️'], ['ส่งซ่อม', '🔧'], ['ไม่มี Gen', '🚫']],
+    required: ['VIDEO', 'RUNNING', 'CABLE_SOCKET', 'VOLTAGE'], kinds: ['VIDEO', 'RUNNING', 'CABLE_SOCKET', 'VOLTAGE', 'PROBLEM'], needRunTime: true,
+    submit: 'ส่งผลทดสอบ', sentWord: 'ผลทดสอบของสัปดาห์นี้'
+  };
+  var pgState = { reportType: '', region: '', province: '', genStatus: '', fuelEnough: '', fuelLevel: '', runTime: '' };
   var pgFiles = {};        // kind -> File ที่ผู้ใช้เลือกใหม่
-  var pgExisting = {};     // kind -> ลิงก์ไฟล์เดิมที่เคยส่งไว้
+  var pgExisting = {};     // kind -> ลิงก์ไฟล์เดิมที่เคยส่งไว้ (ของรอบปัจจุบัน)
   var pgUploaded = {};     // kind -> { file, url } อัปโหลดสำเร็จแล้วในรอบนี้ (กันอัปซ้ำถ้าบันทึกแถวพลาดแล้วกดใหม่)
-  var pgBuilt = false;
-  var pgBusy = false;
+  var pgBuilt = false, pgBusy = false, pgHasRecord = false, pgLoadTok = 0;
 
   function pgFmtSize(b) { return (b / 1024 / 1024).toFixed(1) + ' MB'; }
 
+  function pgSetSeg(id, key, val) {
+    pgState[key] = val || '';
+    document.querySelectorAll('#' + id + ' button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === val); });
+  }
   function pgBindSeg(id, key) {
     document.querySelectorAll('#' + id + ' button').forEach(function (b) {
       b.addEventListener('click', function () { pgSetSeg(id, key, b.dataset.v); });
     });
   }
-  function pgSetSeg(id, key, val) {
-    pgState[key] = val || '';
-    document.querySelectorAll('#' + id + ' button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === val); });
+  function pgSetStatus(val) {
+    pgState.genStatus = val || '';
+    document.querySelectorAll('#pgGenStatus button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === val); });
+  }
+  function pgRenderStatus(type) {
+    var box = document.getElementById('pgGenStatus');
+    box.innerHTML = '';
+    PG_TYPES[type].statuses.forEach(function (st) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.dataset.v = st[0]; b.textContent = st[1] + ' ' + st[0];
+      b.addEventListener('click', function () { pgSetStatus(st[0]); });
+      box.appendChild(b);
+    });
+  }
+  function pgUpdateSubmitLabel() {
+    var cfg = PG_TYPES[pgState.reportType];
+    document.getElementById('pgSubmitBtn').textContent = pgHasRecord ? 'บันทึกการแก้ไข' : (cfg ? cfg.submit : 'ส่งรายงาน');
   }
 
   function pgBuildSlot(slot) {
@@ -2546,7 +2594,9 @@
   }
 
   function pgRenderOld(kind) {
-    var slot = document.getElementById('pgSlot-' + kind), old = slot.querySelector('.pg-old');
+    var slot = document.getElementById('pgSlot-' + kind);
+    if (!slot) return;
+    var old = slot.querySelector('.pg-old');
     if (pgExisting[kind] && !pgFiles[kind]) {
       old.innerHTML = '<div class="pg-existing">✓ มีไฟล์เดิมแล้ว — <a href="' + pgExisting[kind] + '" target="_blank" rel="noopener">ดูไฟล์</a> · ถ่าย/เลือกใหม่เพื่อเปลี่ยน</div>';
       old.style.display = 'block';
@@ -2558,11 +2608,89 @@
     }
   }
 
+  // เคลียร์ไฟล์ที่เลือกไว้ทั้งหมด (กลับไปโชว์ "ไฟล์เดิม" ถ้ามี)
+  function pgClearFiles() {
+    pgFiles = {}; pgUploaded = {};
+    document.querySelectorAll('.pg-slot').forEach(function (slot) {
+      slot.classList.remove('ok', 'bad');
+      slot.querySelector('.pg-info').style.display = 'none';
+      slot.querySelector('.pg-pick').style.display = '';
+      slot.querySelector('input').value = '';
+    });
+    PG_ALL_KINDS.forEach(pgRenderOld);
+  }
+
+  // ล้างฟอร์มตอนสลับประเภทรายงาน (เก็บ Region/Province ไว้) — กันค่าของอีกประเภทค้างแล้วถูกส่งผิดรอบ
+  function pgResetForm() {
+    pgSetStatus('');
+    pgSetSeg('pgFuelEnough', 'fuelEnough', ''); pgSetSeg('pgFuelLevel', 'fuelLevel', ''); pgSetSeg('pgRunTime', 'runTime', '');
+    document.getElementById('pgRemark').value = '';
+    pgExisting = {}; pgHasRecord = false;
+    pgClearFiles();
+    document.getElementById('pgExisting').style.display = 'none';
+    pgUpdateSubmitLabel();
+  }
+
+  function pgSelectType(type) {
+    if (!PG_TYPES[type]) return;
+    var changed = pgState.reportType !== type;
+    pgState.reportType = type;
+    try { localStorage.setItem('pgReportType', type); } catch (e) { /* ไม่เป็นไร */ }
+    document.querySelectorAll('#pgReportType button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === type); });
+    document.getElementById('pgBody').style.display = 'block';
+    document.getElementById('pgDailyOnly').style.display = (type === PG_TYPE_DAILY) ? 'block' : 'none';
+    document.getElementById('pgWeeklyOnly').style.display = (type === PG_TYPE_WEEKLY) ? 'block' : 'none';
+    pgRenderStatus(type);
+    if (changed) pgResetForm(); else pgSetStatus(pgState.genStatus);
+    pgUpdateSubmitLabel();
+    return pgFetchExisting();
+  }
+
+  // โหลดรายงานของทีมในรอบปัจจุบัน (Daily = วันนี้ / Weekly = สัปดาห์นี้) ถ้ามี → เติมค่าเดิมให้แก้ไข
+  function pgFetchExisting() {
+    var type = pgState.reportType, tok = ++pgLoadTok;
+    return callApi('getPortableGenTest', { teamId: currentTeam, reportType: type }).then(function (rec) {
+      if (tok !== pgLoadTok || type !== pgState.reportType) return; // สลับประเภทไปแล้ว ทิ้งผลเก่า
+      pgApplyRecord(rec, type);
+    }).catch(function (err) {
+      showToast('โหลดข้อมูล Portable GEN ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function pgApplyRecord(rec, type) {
+    var box = document.getElementById('pgExisting');
+    pgExisting = {};
+    if (!rec) {
+      pgHasRecord = false; box.style.display = 'none';
+      PG_ALL_KINDS.forEach(pgRenderOld); pgUpdateSubmitLabel();
+      return;
+    }
+    pgSetSeg('pgRegion', 'region', rec.region);
+    document.getElementById('pgProvince').value = rec.province; pgState.province = rec.province;
+    pgSetStatus(rec.genStatus);
+    pgSetSeg('pgFuelEnough', 'fuelEnough', rec.fuelEnough);
+    pgSetSeg('pgFuelLevel', 'fuelLevel', rec.fuelLevel);
+    if (PG_TYPES[type].needRunTime) {
+      pgSetSeg('pgRunTime', 'runTime', rec.runTime);
+      document.getElementById('pgRemark').value = rec.remark || '';
+    }
+    Object.keys(rec.links || {}).forEach(function (k) { if (rec.links[k]) pgExisting[k] = rec.links[k]; });
+    PG_ALL_KINDS.forEach(pgRenderOld);
+    pgHasRecord = true;
+    box.innerHTML = '<div class="pg-existing">✓ ทีมนี้ส่ง' + PG_TYPES[type].sentWord + 'แล้ว (อัปเดตล่าสุด ' + rec.updatedAt + ') — แก้ไขแล้วกดส่งซ้ำได้ จะอัปเดตแถวเดิม' +
+      (rec.folderLink ? '<br><a href="' + rec.folderLink + '" target="_blank" rel="noopener">📁 เปิดอัลบั้มของทีม</a>' : '') + '</div>';
+    box.style.display = 'block';
+    pgUpdateSubmitLabel();
+  }
+
   function loadPortableGenTab() {
     if (!pgBuilt) {
-      pgBindSeg('pgRegion', 'region'); pgBindSeg('pgGenStatus', 'genStatus');
+      pgBindSeg('pgRegion', 'region');
       pgBindSeg('pgFuelEnough', 'fuelEnough'); pgBindSeg('pgFuelLevel', 'fuelLevel'); pgBindSeg('pgRunTime', 'runTime');
       document.getElementById('pgProvince').addEventListener('change', function (e) { pgState.province = e.target.value; });
+      document.querySelectorAll('#pgReportType button').forEach(function (b) {
+        b.addEventListener('click', function () { pgSelectType(b.dataset.v); });
+      });
       document.querySelectorAll('.pg-slot').forEach(pgBuildSlot);
       document.getElementById('pgSubmitBtn').addEventListener('click', pgSubmit);
       pgBuilt = true;
@@ -2573,26 +2701,10 @@
     if (!pgState.province && seg && Array.from(sel.options).some(function (o) { return o.value === seg; })) {
       sel.value = seg; pgState.province = seg;
     }
-    var box = document.getElementById('pgExisting');
-    callApi('getPortableGenTest', { teamId: currentTeam }).then(function (rec) {
-      if (!rec) { box.style.display = 'none'; return; }
-      pgSetSeg('pgRegion', 'region', rec.region);
-      sel.value = rec.province; pgState.province = rec.province;
-      pgSetSeg('pgGenStatus', 'genStatus', rec.genStatus);
-      pgSetSeg('pgFuelEnough', 'fuelEnough', rec.fuelEnough);
-      pgSetSeg('pgFuelLevel', 'fuelLevel', rec.fuelLevel);
-      pgSetSeg('pgRunTime', 'runTime', rec.runTime);
-      document.getElementById('pgRemark').value = rec.remark || '';
-      pgExisting = {};
-      Object.keys(rec.links || {}).forEach(function (k) { if (rec.links[k]) pgExisting[k] = rec.links[k]; });
-      ['VIDEO', 'RUNNING', 'CABLE_SOCKET', 'VOLTAGE', 'PROBLEM'].forEach(pgRenderOld);
-      box.innerHTML = '<div class="pg-existing">✓ ทีมนี้ส่งผลแล้ว (อัปเดตล่าสุด ' + rec.updatedAt + ') — แก้ไขแล้วกดส่งซ้ำได้ จะอัปเดตแถวเดิม' +
-        (rec.folderLink ? '<br><a href="' + rec.folderLink + '" target="_blank" rel="noopener">📁 เปิดอัลบั้มของทีม</a>' : '') + '</div>';
-      box.style.display = 'block';
-      document.getElementById('pgSubmitBtn').textContent = 'บันทึกการแก้ไข';
-    }).catch(function (err) {
-      showToast('โหลดข้อมูล Portable GEN ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
-    });
+    // จำประเภทที่ใช้ล่าสุดไว้ เปิดมาแล้วเลือกให้เลย (ทีมส่ง Daily ทุกวัน ลดการแตะ)
+    var last = ''; try { last = localStorage.getItem('pgReportType') || ''; } catch (e) { /* ไม่เป็นไร */ }
+    var type = pgState.reportType || last;
+    if (PG_TYPES[type]) pgSelectType(type);
   }
 
   function pgBlobToBase64(blob) {
@@ -2638,23 +2750,23 @@
 
   function pgSubmit() {
     if (pgBusy) return;
-    var s = pgState, errs = [];
+    var s = pgState, cfg = PG_TYPES[s.reportType], errs = [];
+    if (!cfg) { showToast('เลือกประเภทรายงานก่อน'); return; }
     if (!s.region) errs.push('เลือก Region');
     if (!s.province) errs.push('เลือก Province');
+    cfg.required.forEach(function (k) { if (!pgFiles[k] && !pgExisting[k]) errs.push('แนบ' + PG_LABELS[k]); });
     if (!s.genStatus) errs.push('เลือกสถานะ Generator');
     if (!s.fuelEnough) errs.push('ระบุว่ามีน้ำมันเพียงพอหรือไม่');
     if (!s.fuelLevel) errs.push('เลือกระดับน้ำมัน');
-    if (!s.runTime) errs.push('เลือกระยะเวลารันเครื่อง');
-    (PG_REQUIRED[s.genStatus] || PG_REQUIRED['ติดปกติ']).forEach(function (k) {
-      if (!pgFiles[k] && !pgExisting[k]) errs.push('แนบ' + PG_LABELS[k]);
-    });
+    if (cfg.needRunTime && !s.runTime) errs.push('เลือกระยะเวลารันเครื่อง');
     if (errs.length) { showToast('ยังไม่ครบ: ' + errs[0] + (errs.length > 1 ? ' (+อีก ' + (errs.length - 1) + ')' : '')); return; }
 
     var btn = document.getElementById('pgSubmitBtn'), prog = document.getElementById('pgProgress');
-    var label = btn.textContent;
+    var type = s.reportType;
     pgBusy = true; btn.disabled = true; prog.style.display = 'block';
 
-    var kinds = Object.keys(pgFiles).filter(function (k) { return !(pgUploaded[k] && pgUploaded[k].file === pgFiles[k]); });
+    // อัปโหลดเฉพาะไฟล์ของประเภทนี้ที่เลือกใหม่ และยังไม่เคยอัปโหลดสำเร็จ
+    var kinds = cfg.kinds.filter(function (k) { return pgFiles[k] && !(pgUploaded[k] && pgUploaded[k].file === pgFiles[k]); });
     var done = 0;
     var chain = kinds.reduce(function (p, k) {
       return p.then(function () {
@@ -2667,28 +2779,23 @@
     chain.then(function () {
       prog.textContent = 'กำลังบันทึกผล...';
       var links = {};
-      Object.keys(pgFiles).forEach(function (k) { if (pgUploaded[k]) links[k] = pgUploaded[k].url; });
+      cfg.kinds.forEach(function (k) { if (pgFiles[k] && pgUploaded[k]) links[k] = pgUploaded[k].url; });
       return callApiPost('savePortableGenTest', {
-        teamId: currentTeam, region: s.region, province: s.province, genStatus: s.genStatus,
-        fuelEnough: s.fuelEnough, fuelLevel: s.fuelLevel, runTime: s.runTime,
-        remark: document.getElementById('pgRemark').value, links: links, by: currentWho || currentTeam
+        teamId: currentTeam, reportType: type, region: s.region, province: s.province, genStatus: s.genStatus,
+        fuelEnough: s.fuelEnough, fuelLevel: s.fuelLevel, runTime: cfg.needRunTime ? s.runTime : '',
+        remark: cfg.needRunTime ? document.getElementById('pgRemark').value : '', links: links, by: currentWho || currentTeam
       });
-    }).then(function (rec) {
-      showToast('ส่งผลทดสอบเรียบร้อยแล้ว ✓');
-      pgFiles = {}; pgUploaded = {};
-      document.querySelectorAll('.pg-slot').forEach(function (slot) {
-        slot.classList.remove('ok', 'bad');
-        slot.querySelector('.pg-info').style.display = 'none';
-        slot.querySelector('.pg-pick').style.display = '';
-        slot.querySelector('input').value = '';
-      });
-      loadPortableGenTab(); // โหลดสถานะล่าสุดกลับมาโชว์ (ลิงก์ไฟล์/อัลบั้ม)
+    }).then(function () {
+      showToast('ส่งเรียบร้อยแล้ว ✓');
+      pgHasRecord = true;
+      pgClearFiles();
+      if (pgState.reportType === type) pgFetchExisting(); // โหลดสถานะล่าสุดกลับมาโชว์ (ลิงก์ไฟล์/อัลบั้ม)
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }).catch(function (err) {
       showToast('ส่งไม่สำเร็จ: ' + (err && err.message ? err.message : err) + ' — กดส่งใหม่ได้ (ไฟล์ที่อัปโหลดแล้วไม่ต้องส่งซ้ำ)');
     }).finally(function () {
       pgBusy = false; btn.disabled = false; prog.style.display = 'none';
-      btn.textContent = document.getElementById('pgExisting').style.display === 'block' ? 'บันทึกการแก้ไข' : label;
+      pgUpdateSubmitLabel();
     });
   }
 
