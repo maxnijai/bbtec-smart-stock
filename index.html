@@ -253,6 +253,13 @@
         <div class="item-meta" style="margin-top:3px;">ส่งผลทดสอบเครื่องปั่นไฟ · รูป · คลิปสตาร์ท</div>
       </div>
     </div>
+    <div class="card" onclick="goToModule('fixedgen')" style="cursor:pointer;padding:22px 18px;margin-bottom:14px;border-left:5px solid var(--gold);display:flex;align-items:center;gap:16px;">
+      <div style="font-size:40px;">⚡</div>
+      <div>
+        <div class="item-name" style="font-size:17px;">Fixed Gen</div>
+        <div class="item-meta" style="margin-top:3px;">ตรวจเครื่องปั่นไฟประจำที่ · รายงานเดือนละครั้ง</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -667,6 +674,48 @@
       </div>
     </div>
 
+    <!-- Fixed Gen -->
+    <div class="tab-panel" id="tab-fixedgen">
+      <div class="section-label" style="margin:4px 0 8px 2px;">⚡ Fixed Gen <span id="fgPeriodLbl" class="pg-hint"></span></div>
+      <div id="fgExisting" class="card" style="display:none;"></div>
+
+      <div class="card" id="fgForm">
+        <div class="field">
+          <label>จังหวัด <span style="color:var(--red)">*</span></label>
+          <select id="fgProvince"><option value="">เลือกจังหวัด...</option></select>
+        </div>
+        <div class="field">
+          <label>SITE ที่ตรวจ <span style="color:var(--red)">*</span><span class="pg-hint">✓ = ส่งแล้วเดือนนี้</span></label>
+          <select id="fgSite"><option value="">เลือกจังหวัดก่อน</option></select>
+          <div id="fgInfo" class="pg-existing" style="display:none;color:var(--navy);margin-top:8px;"></div>
+        </div>
+
+        <div id="fgBody" style="display:none;">
+          <div class="field"><label>สถานะ Generator <span style="color:var(--red)">*</span></label><div class="pg-status" id="fgGenStatus"></div></div>
+          <div class="field"><label>แบต Gen <span style="color:var(--red)">*</span></label><div class="pg-seg" id="fgBatteryStatus"></div></div>
+          <div class="field"><label>ประเภทของแบต <span style="color:var(--red)">*</span></label><div class="pg-seg" id="fgBatteryType"></div></div>
+          <div class="field" id="fgWaterWrap" style="display:none;"><label>ระดับน้ำกลั่น <span style="color:var(--red)">*</span><span class="pg-hint">เฉพาะแบตน้ำ</span></label><div class="pg-seg" id="fgWaterLevel"></div></div>
+          <div class="field"><label>น้ำในหม้อน้ำ <span style="color:var(--red)">*</span></label><div class="pg-seg" id="fgRadiatorWater"></div></div>
+          <div class="field"><label>น้ำมันเครื่อง Gen <span style="color:var(--red)">*</span></label><div class="pg-seg" id="fgEngineOil"></div></div>
+          <div class="field"><label>มีน้ำมันเชื้อเพลิงเพียงพอหรือไม่ <span style="color:var(--red)">*</span></label><div class="pg-seg" id="fgFuelEnough"></div></div>
+          <div class="field"><label>ระดับน้ำมันเชื้อเพลิง <span style="color:var(--red)">*</span></label><div class="pg-seg" id="fgFuelLevel"></div></div>
+          <div class="field"><label>ระยะเวลารันเครื่อง <span style="color:var(--red)">*</span></label><div class="pg-seg" id="fgRunTime"></div></div>
+          <div class="field"><label>คลิปสตาร์ท Generator <span style="color:var(--red)">*</span><span class="pg-hint">วีดีโอ ไม่เกิน 10 MB</span></label><div class="pg-slot" id="fgSlot-VIDEO" data-kind="VIDEO"></div></div>
+          <div class="field"><label>รูป Gen ขณะทำงาน <span style="color:var(--red)">*</span></label><div class="pg-slot" id="fgSlot-RUNNING" data-kind="RUNNING"></div></div>
+          <div class="field"><label>รูปตู้ ATS <span style="color:var(--red)">*</span></label><div class="pg-slot" id="fgSlot-ATS" data-kind="ATS"></div></div>
+          <div class="field"><label>รูปวัดแรงดันและกระแสไฟฟ้าขณะ Gen ทำงาน <span style="color:var(--red)">*</span></label><div class="pg-slot" id="fgSlot-VOLTAGE" data-kind="VOLTAGE"></div></div>
+          <div class="field">
+            <label>หมายเหตุปัญหา (หากมี) หรือเข้าไปทำ ticket อะไร</label>
+            <textarea id="fgRemark" rows="3" placeholder="เช่น แบตอ่อน เปิด ticket INC-xxxx"></textarea>
+            <div class="pg-hint" style="margin:8px 0 0 0;">แนบรูปประกอบปัญหา (ถ้ามี)</div>
+            <div class="pg-slot" id="fgSlot-PROBLEM" data-kind="PROBLEM"></div>
+          </div>
+          <div id="fgProgress" style="display:none;font-size:12.5px;color:var(--navy);font-weight:600;margin-bottom:8px;line-height:1.5;"></div>
+          <button type="button" class="btn btn-primary" id="fgSubmitBtn">ส่งรายงานประจำเดือน</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ===== Route Survey: bottom sheets (นอก .content เพื่อไม่ให้ padding/max-width ของ .content บีบ) ===== -->
@@ -778,6 +827,7 @@
     <button class="nav-btn" onclick="showTab('checkin', event)"><span class="icon">👥</span>รายงานตัว</button>
     <button class="nav-btn" onclick="showTab('routesurvey', event)"><span class="icon">🗺️</span>Route Survey</button>
     <button class="nav-btn" onclick="showTab('portablegen', event)"><span class="icon">🔌</span>Portable GEN</button>
+    <button class="nav-btn" onclick="showTab('fixedgen', event)"><span class="icon">⚡</span>Fixed Gen</button>
   </div>
 
 </div>
@@ -908,7 +958,7 @@
     if (module === 'stock') {
       allNavBtns.forEach(function(b) {
         var oc = b.getAttribute('onclick') || '';
-        if (oc.indexOf('checkin') >= 0 || oc.indexOf('routesurvey') >= 0 || oc.indexOf('portablegen') >= 0) b.style.display = 'none';
+        if (oc.indexOf('checkin') >= 0 || oc.indexOf('routesurvey') >= 0 || oc.indexOf('portablegen') >= 0 || oc.indexOf('fixedgen') >= 0) b.style.display = 'none';
         if (oc.indexOf("'count'") >= 0) b.classList.add('active');
       });
       document.getElementById('tab-count').classList.add('active');
@@ -939,6 +989,14 @@
       });
       document.getElementById('tab-portablegen').classList.add('active');
       loadPortableGenTab();
+    } else if (module === 'fixedgen') {
+      allNavBtns.forEach(function(b) {
+        var oc = b.getAttribute('onclick') || '';
+        if (oc.indexOf('fixedgen') < 0) b.style.display = 'none';
+        else b.classList.add('active');
+      });
+      document.getElementById('tab-fixedgen').classList.add('active');
+      loadFixedGenTab();
     }
   }
   function loadTeamList() {
@@ -1030,6 +1088,7 @@
     if (name === 'checkin') loadCheckinTab();
     if (name === 'routesurvey') loadRouteSurveyTab();
     if (name === 'portablegen') loadPortableGenTab();
+    if (name === 'fixedgen') loadFixedGenTab();
   }
   function rsSetBodyLock(on) {
     document.documentElement.classList.toggle('rs-locked', on);
@@ -2498,6 +2557,291 @@
     }).finally(function () {
       saveBtn.disabled = false;
       saveBtn.textContent = 'บันทึกผลตรวจ';
+    });
+  }
+
+  /* ============ Fixed Gen (รายงานรายเดือน) ============ */
+  var FG_KINDS = ['VIDEO', 'RUNNING', 'ATS', 'VOLTAGE', 'PROBLEM'];
+  var FG_REQUIRED = ['VIDEO', 'RUNNING', 'ATS', 'VOLTAGE'];
+  var FG_LABELS = { VIDEO: 'คลิปสตาร์ท Generator', RUNNING: 'รูป Gen ขณะทำงาน', ATS: 'รูปตู้ ATS', VOLTAGE: 'รูปวัดแรงดันและกระแสไฟฟ้า', PROBLEM: 'รูปประกอบปัญหา' };
+  var FG_REGION = { CMI:'NOR1', CRI:'NOR1', LPG:'NOR1', LPN:'NOR1', MHS:'NOR1', NAN:'NOR1', PHE:'NOR1', PYO:'NOR1', KPP:'NOR2', PCB:'NOR2', PCT:'NOR2', PSN:'NOR2', SKT:'NOR2', TAK:'NOR2', UTR:'NOR2' };
+  var FG_SEGS = [
+    ['fgBatteryStatus', 'batteryStatus', ['ปกติ', 'ไม่ปกติ']],
+    ['fgBatteryType', 'batteryType', ['แบตแห้ง', 'แบตน้ำ']],
+    ['fgWaterLevel', 'waterLevel', ['อยู่ในเกณฑ์ปกติ', 'ต่ำกว่าเกณฑ์']],
+    ['fgRadiatorWater', 'radiatorWater', ['ปกติ', 'ไม่ปกติ']],
+    ['fgEngineOil', 'engineOil', ['อยู่ในเกณฑ์ปกติ', 'ต่ำกว่าเกณฑ์']],
+    ['fgFuelEnough', 'fuelEnough', ['มี', 'ไม่มี']],
+    ['fgFuelLevel', 'fuelLevel', ['0-25%', '26-50%', '51-75%', '76-100%']],
+    ['fgRunTime', 'runTime', ['ต่ำกว่า 5 นาที', '5-10 นาที', 'มากกว่า 10 นาที']]
+  ];
+  var FG_STATUSES = [['ติดปกติ', '✅'], ['สตาร์ทไม่ติด', '⚠️'], ['ส่งซ่อม', '🔧'], ['ไม่มี Gen', '🚫']];
+  var fgState = { province: '', genKey: '', genStatus: '', batteryStatus: '', batteryType: '', waterLevel: '', radiatorWater: '', engineOil: '', fuelEnough: '', fuelLevel: '', runTime: '' };
+  var fgFiles = {}, fgExisting = {}, fgUploaded = {};
+  var fgBuilt = false, fgBusy = false, fgHasRecord = false, fgLoadTok = 0, fgData = null;
+
+  function fgSetSeg(id, key, val) {
+    fgState[key] = val || '';
+    document.querySelectorAll('#' + id + ' button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === val); });
+    if (key === 'batteryType') {
+      document.getElementById('fgWaterWrap').style.display = (val === 'แบตน้ำ') ? 'block' : 'none';
+      if (val !== 'แบตน้ำ') fgSetSeg('fgWaterLevel', 'waterLevel', '');
+    }
+  }
+  function fgRenderSegs() {
+    FG_SEGS.forEach(function (s) {
+      var box = document.getElementById(s[0]);
+      box.innerHTML = '';
+      s[2].forEach(function (v) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.dataset.v = v; b.textContent = v;
+        b.addEventListener('click', function () { fgSetSeg(s[0], s[1], v); });
+        box.appendChild(b);
+      });
+    });
+    var st = document.getElementById('fgGenStatus');
+    st.innerHTML = '';
+    FG_STATUSES.forEach(function (x) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.dataset.v = x[0]; b.textContent = x[1] + ' ' + x[0];
+      b.addEventListener('click', function () { fgSetStatus(x[0]); });
+      st.appendChild(b);
+    });
+  }
+  function fgSetStatus(v) {
+    fgState.genStatus = v || '';
+    document.querySelectorAll('#fgGenStatus button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === v); });
+  }
+
+  function fgBuildSlot(slot) {
+    var kind = slot.dataset.kind, isVideo = kind === 'VIDEO';
+    slot.innerHTML =
+      '<div class="pg-old" style="display:none;"></div>' +
+      '<button type="button" class="pg-pick">' + (isVideo ? '🎥 ถ่าย/เลือกคลิป' : '📷 ถ่าย/เลือกรูป') + '</button>' +
+      '<input type="file" accept="' + (isVideo ? 'video/*' : 'image/*') + '" capture="environment" style="display:none;">' +
+      '<div class="pg-info" style="display:none;"></div>';
+    var input = slot.querySelector('input'), pick = slot.querySelector('.pg-pick'), info = slot.querySelector('.pg-info');
+    pick.addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', function () {
+      var f = input.files[0];
+      if (!f) return;
+      if (isVideo && f.size > PG_MAX_BYTES) {
+        delete fgFiles[kind];
+        slot.classList.remove('ok'); slot.classList.add('bad');
+        info.innerHTML = '<div class="pg-meta"><span class="nm"></span><span class="sz" style="color:var(--red);">' + pgFmtSize(f.size) + '</span></div>' +
+          '<div class="pg-err">คลิปใหญ่เกิน 10 MB — ลองถ่ายให้สั้นลง (ประมาณ 10–15 วินาที)</div>';
+        info.querySelector('.nm').textContent = f.name;
+        info.style.display = 'block'; input.value = '';
+        return;
+      }
+      fgFiles[kind] = f; delete fgUploaded[kind];
+      var url = URL.createObjectURL(f);
+      slot.classList.remove('bad'); slot.classList.add('ok');
+      info.innerHTML = '<div class="pg-meta"><span class="nm"></span><span class="sz" style="color:var(--green);">' + pgFmtSize(f.size) + (isVideo ? '' : ' (ระบบย่อให้ตอนส่ง)') + '</span></div>' +
+        '<div class="pg-prev">' + (isVideo ? '<video src="' + url + '" controls muted preload="metadata"></video>' : '<img src="' + url + '">') + '</div>' +
+        '<div style="margin-top:6px;"><button type="button" class="pg-rm">ลบ / เลือกใหม่</button></div>';
+      info.querySelector('.nm').textContent = f.name;
+      info.style.display = 'block';
+      slot.querySelector('.pg-old').style.display = 'none';
+      pick.style.display = 'none';
+      info.querySelector('.pg-rm').addEventListener('click', function () {
+        delete fgFiles[kind]; delete fgUploaded[kind]; input.value = '';
+        slot.classList.remove('ok', 'bad'); info.style.display = 'none'; pick.style.display = '';
+        fgRenderOld(kind);
+      });
+    });
+  }
+  function fgRenderOld(kind) {
+    var slot = document.getElementById('fgSlot-' + kind);
+    if (!slot) return;
+    var old = slot.querySelector('.pg-old');
+    if (fgExisting[kind] && !fgFiles[kind]) {
+      old.innerHTML = '<div class="pg-existing">✓ มีไฟล์เดิมแล้ว — <a href="' + fgExisting[kind] + '" target="_blank" rel="noopener">ดูไฟล์</a> · ถ่าย/เลือกใหม่เพื่อแทนที่</div>';
+      old.style.display = 'block'; slot.classList.add('ok');
+      slot.querySelector('.pg-pick').style.marginTop = '8px';
+    } else {
+      old.style.display = 'none';
+      if (!fgFiles[kind]) slot.classList.remove('ok');
+    }
+  }
+  function fgClearFiles() {
+    fgFiles = {}; fgUploaded = {};
+    document.querySelectorAll('#tab-fixedgen .pg-slot').forEach(function (slot) {
+      slot.classList.remove('ok', 'bad');
+      slot.querySelector('.pg-info').style.display = 'none';
+      slot.querySelector('.pg-pick').style.display = '';
+      slot.querySelector('input').value = '';
+    });
+    FG_KINDS.forEach(fgRenderOld);
+  }
+  function fgResetForm() {
+    fgSetStatus('');
+    FG_SEGS.forEach(function (s) { fgSetSeg(s[0], s[1], ''); });
+    document.getElementById('fgRemark').value = '';
+    fgExisting = {}; fgHasRecord = false;
+    fgClearFiles();
+    document.getElementById('fgExisting').style.display = 'none';
+    fgUpdateSubmitLabel();
+  }
+  function fgUpdateSubmitLabel() {
+    document.getElementById('fgSubmitBtn').textContent = fgHasRecord ? 'บันทึกการแก้ไข' : 'ส่งรายงานประจำเดือน';
+  }
+
+  function fgUnit(genKey) {
+    return fgData && fgData.registry.filter(function (r) { return r.genKey === genKey; })[0] || null;
+  }
+  function fgRenderProvinces() {
+    var sel = document.getElementById('fgProvince'), cur = fgState.province;
+    var nops = {};
+    fgData.registry.forEach(function (r) { nops[r.nop] = 1; });
+    sel.innerHTML = '<option value="">เลือกจังหวัด...</option>' + Object.keys(nops).sort().map(function (n) {
+      return '<option value="' + n + '">' + n + (FG_REGION[n] ? ' (' + FG_REGION[n] + ')' : '') + '</option>';
+    }).join('');
+    if (cur && nops[cur]) sel.value = cur;
+  }
+  function fgRenderSites() {
+    var sel = document.getElementById('fgSite'), prov = fgState.province, cur = fgState.genKey;
+    if (!prov) { sel.innerHTML = '<option value="">เลือกจังหวัดก่อน</option>'; return; }
+    var list = fgData.registry.filter(function (r) { return r.nop === prov; });
+    if (!list.length) { sel.innerHTML = '<option value="">ไม่มีเครื่องในจังหวัดนี้</option>'; return; }
+    sel.innerHTML = '<option value="">เลือก SITE...</option>' + list.map(function (r) {
+      var label = r.site + (r.type && r.type !== '-' ? ' · ' + r.type : '');
+      return '<option value="' + r.genKey + '">' + (fgData.done[r.genKey] ? '✓ ' : '') + label + '</option>';
+    }).join('');
+    if (cur && list.some(function (r) { return r.genKey === cur; })) sel.value = cur;
+  }
+  function fgShowInfo() {
+    var u = fgUnit(fgState.genKey), box = document.getElementById('fgInfo');
+    if (!u) { box.style.display = 'none'; return; }
+    box.textContent = 'Level: ' + (u.level || '-') + ' · Type: ' + (u.type || '-') + ' · Brand: ' + (u.brand || '-');
+    box.style.display = 'block';
+  }
+
+  function fgSelectProvince(p) {
+    fgState.province = p || '';
+    fgState.genKey = '';
+    fgRenderSites();
+    fgSelectSite('');
+  }
+  function fgSelectSite(genKey) {
+    fgState.genKey = genKey || '';
+    fgLoadTok++;
+    fgShowInfo();
+    document.getElementById('fgBody').style.display = genKey ? 'block' : 'none';
+    fgResetForm();
+    if (!genKey) return Promise.resolve();
+    var tok = fgLoadTok;
+    return callApi('getFixedGenReport', { teamId: currentTeam, genKey: genKey }).then(function (rec) {
+      if (tok !== fgLoadTok) return;
+      fgApplyRecord(rec);
+    }).catch(function (err) { showToast('โหลดข้อมูล Fixed Gen ไม่สำเร็จ: ' + (err && err.message ? err.message : err)); });
+  }
+  function fgApplyRecord(rec) {
+    var box = document.getElementById('fgExisting');
+    if (!rec) { fgHasRecord = false; box.style.display = 'none'; fgUpdateSubmitLabel(); return; }
+    fgSetStatus(rec.genStatus);
+    fgSetSeg('fgBatteryStatus', 'batteryStatus', rec.batteryStatus);
+    fgSetSeg('fgBatteryType', 'batteryType', rec.batteryType);
+    if (rec.batteryType === 'แบตน้ำ') fgSetSeg('fgWaterLevel', 'waterLevel', rec.waterLevel);
+    fgSetSeg('fgRadiatorWater', 'radiatorWater', rec.radiatorWater);
+    fgSetSeg('fgEngineOil', 'engineOil', rec.engineOil);
+    fgSetSeg('fgFuelEnough', 'fuelEnough', rec.fuelEnough);
+    fgSetSeg('fgFuelLevel', 'fuelLevel', rec.fuelLevel);
+    fgSetSeg('fgRunTime', 'runTime', rec.runTime);
+    document.getElementById('fgRemark').value = rec.remark || '';
+    fgExisting = {};
+    Object.keys(rec.links || {}).forEach(function (k) { if (rec.links[k]) fgExisting[k] = rec.links[k]; });
+    FG_KINDS.forEach(fgRenderOld);
+    fgHasRecord = true;
+    box.innerHTML = '<div class="pg-existing">✓ เครื่องนี้ส่งรายงานเดือนนี้แล้ว โดย ' + (rec.submittedBy || rec.teamId) + ' (อัปเดตล่าสุด ' + rec.updatedAt + ') — แก้ไขแล้วกดบันทึกซ้ำได้' +
+      (rec.folderLink ? '<br><a href="' + rec.folderLink + '" target="_blank" rel="noopener">📁 เปิดอัลบั้มของเครื่องนี้</a>' : '') + '</div>';
+    box.style.display = 'block';
+    fgUpdateSubmitLabel();
+  }
+
+  function loadFixedGenTab() {
+    if (!fgBuilt) {
+      fgRenderSegs();
+      document.querySelectorAll('#tab-fixedgen .pg-slot').forEach(fgBuildSlot);
+      document.getElementById('fgProvince').addEventListener('change', function (e) { fgSelectProvince(e.target.value); });
+      document.getElementById('fgSite').addEventListener('change', function (e) { fgSelectSite(e.target.value); });
+      document.getElementById('fgSubmitBtn').addEventListener('click', fgSubmit);
+      fgBuilt = true;
+    }
+    return callApi('getFixedGenInit', {}).then(function (d) {
+      fgData = d;
+      document.getElementById('fgPeriodLbl').textContent = 'รอบเดือน ' + d.period;
+      if (!fgState.province) {
+        var seg = String(currentTeam || '').split('-')[2];
+        if (seg && d.registry.some(function (r) { return r.nop === seg; })) fgState.province = seg;
+      }
+      fgRenderProvinces();
+      fgRenderSites();
+      if (!d.registry.length) showToast('ยังไม่มีทะเบียนเครื่อง Fixed Gen — แจ้งผู้ดูแลระบบ');
+    }).catch(function (err) { showToast('โหลด Fixed Gen ไม่สำเร็จ: ' + (err && err.message ? err.message : err)); });
+  }
+
+  function fgUploadOne(kind, file) {
+    var isVideo = kind === 'VIDEO';
+    var prep = isVideo ? Promise.resolve(file) : pgCompressImage(file).catch(function () {
+      if (file.size <= PG_MAX_BYTES) return file;
+      throw new Error('ย่อรูปไม่ได้และไฟล์ใหญ่เกิน 10 MB');
+    });
+    return prep.then(function (blob) {
+      return pgBlobToBase64(blob).then(function (b64) {
+        return callApiPost('uploadFixedGenFile', { teamId: currentTeam, genKey: fgState.genKey, kind: kind,
+          mimeType: blob.type || file.type, fileName: isVideo ? file.name : 'photo.jpg', base64: b64 });
+      });
+    }).then(function (res) { fgUploaded[kind] = { file: file, url: res.url }; return res.url; });
+  }
+
+  function fgSubmit() {
+    if (fgBusy) return;
+    var s = fgState, errs = [];
+    if (!s.genKey) { showToast('เลือก SITE ก่อน'); return; }
+    if (!s.genStatus) errs.push('เลือกสถานะ Generator');
+    if (!s.batteryStatus) errs.push('เลือกสถานะแบต Gen');
+    if (!s.batteryType) errs.push('เลือกประเภทของแบต');
+    if (s.batteryType === 'แบตน้ำ' && !s.waterLevel) errs.push('เลือกระดับน้ำกลั่น');
+    if (!s.radiatorWater) errs.push('เลือกสถานะน้ำในหม้อน้ำ');
+    if (!s.engineOil) errs.push('เลือกระดับน้ำมันเครื่อง');
+    if (!s.fuelEnough) errs.push('ระบุว่ามีน้ำมันเพียงพอหรือไม่');
+    if (!s.fuelLevel) errs.push('เลือกระดับน้ำมันเชื้อเพลิง');
+    if (!s.runTime) errs.push('เลือกระยะเวลารันเครื่อง');
+    FG_REQUIRED.forEach(function (k) { if (!fgFiles[k] && !fgExisting[k]) errs.push('แนบ' + FG_LABELS[k]); });
+    if (errs.length) { showToast('ยังไม่ครบ: ' + errs[0] + (errs.length > 1 ? ' (+อีก ' + (errs.length - 1) + ')' : '')); return; }
+
+    var btn = document.getElementById('fgSubmitBtn'), prog = document.getElementById('fgProgress');
+    var genKey = s.genKey;
+    fgBusy = true; btn.disabled = true; prog.style.display = 'block';
+    var kinds = FG_KINDS.filter(function (k) { return fgFiles[k] && !(fgUploaded[k] && fgUploaded[k].file === fgFiles[k]); });
+    var done = 0;
+    var chain = kinds.reduce(function (p, k) {
+      return p.then(function () {
+        done++;
+        prog.textContent = 'กำลังอัปโหลด ' + done + '/' + kinds.length + ': ' + FG_LABELS[k] + ' (อย่าปิดหน้านี้)';
+        return fgUploadOne(k, fgFiles[k]);
+      });
+    }, Promise.resolve());
+    chain.then(function () {
+      prog.textContent = 'กำลังบันทึกผล...';
+      var links = {};
+      FG_KINDS.forEach(function (k) { if (fgFiles[k] && fgUploaded[k]) links[k] = fgUploaded[k].url; });
+      return callApiPost('saveFixedGenReport', { teamId: currentTeam, genKey: genKey, genStatus: s.genStatus, batteryStatus: s.batteryStatus,
+        batteryType: s.batteryType, waterLevel: s.batteryType === 'แบตน้ำ' ? s.waterLevel : '', radiatorWater: s.radiatorWater, engineOil: s.engineOil,
+        fuelEnough: s.fuelEnough, fuelLevel: s.fuelLevel, runTime: s.runTime, remark: document.getElementById('fgRemark').value,
+        links: links, by: currentWho || currentTeam });
+    }).then(function (rec) {
+      showToast('ส่งเรียบร้อยแล้ว ✓');
+      fgClearFiles();
+      if (fgState.genKey === genKey) { fgApplyRecord(rec); }
+      callApi('getFixedGenInit', {}).then(function (d) { fgData = d; fgRenderSites(); document.getElementById('fgSite').value = fgState.genKey; }).catch(function () {});
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }).catch(function (err) {
+      showToast('ส่งไม่สำเร็จ: ' + (err && err.message ? err.message : err) + ' — กดส่งใหม่ได้ (ไฟล์ที่อัปโหลดแล้วไม่ต้องส่งซ้ำ)');
+    }).finally(function () {
+      fgBusy = false; btn.disabled = false; prog.style.display = 'none';
+      fgUpdateSubmitLabel();
     });
   }
 
